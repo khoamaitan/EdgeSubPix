@@ -19,7 +19,7 @@ if (WIN32)
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
 endif()
 
-add_library(EdgesSubPix EdgesSubPix.cpp EdgesSubPix.h)
+add_library(EdgesSubPix SubPix.cpp SubPix.h EdgesSubPix.cpp EdgesSubPix.h)
 target_link_libraries(EdgesSubPix ${OpenCV_LIBS})
 
 add_executable(Edge test_EdgesSubPix.cpp)
