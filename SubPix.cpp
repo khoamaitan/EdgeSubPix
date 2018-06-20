@@ -1,7 +1,7 @@
 #include <iterator>
 
 #include "EdgesSubPix.h"
-#include "SubPix.h"
+#include "subpix.h"
 
 
 
@@ -15,24 +15,6 @@ sp::SubPix::SubPix()
 
 sp::SubPix::~SubPix()
 {
-}
-
-cv::Point2f sp::SubPix::subpixel2Image(const cv::Point2f& subpixel)
-{
-	cv::Point2f pt;
-	pt.x = subpixel.x+0.5f;
-	pt.y = subpixel.y+0.5f;
-
-	return pt;
-}
-
-cv::Point2f sp::SubPix::image2Subpixel(const cv::Point2f& imageCoord)
-{
-	cv::Point2f pt;
-	pt.x = imageCoord.x-0.5f;
-	pt.y = imageCoord.y-0.5f;
-
-	return pt;
 }
 
 void sp::SubPix::extractEdges(int threshold)
@@ -58,7 +40,7 @@ void sp::SubPix::extractEdges(int threshold)
         getImageROI(roiImage.first, imageROI, edgesROI);
 
         int64 t0 = cv::getCPUTickCount();
-        m_edgesSubPix.edgesSubPix(imageROI, m_alpha, m_low, m_high, m_edgesInPixel, m_edgesInSubPixel, edgesROI);
+        m_edgesSubPix.edgesSubPix(imageROI, m_alpha, m_low, m_high, m_mask, m_edgesInPixel, m_edgesInSubPixel, edgesROI);
         int64 t1 = cv::getCPUTickCount();
 
         cv::Rect roi = getROI(roiImage.first);
@@ -66,6 +48,7 @@ void sp::SubPix::extractEdges(int threshold)
         if (m_display) {
             if (!roi.empty()) {
                 std::cout << "ROI " << roiImage.first << " (" << roi.x << "," << roi.y << "," << roi.width << "x" << roi.height << ")" << " : " << "execution time is " << (t1 - t0) / (double)cv::getTickFrequency() << " seconds" << std::endl;
+				std::cout << "using mask : " << !m_mask.empty() << std::endl;
                 std::cout << "nb edges (subpixel) : " << m_edgesInSubPixel.size() << std::endl;
                 std::cout << "nb edges (pixel) : " << m_edgesInPixel.size() << std::endl;
             }
@@ -110,7 +93,7 @@ void sp::SubPix::extractContours(int threshold)
         getImageROI(roiImage.first, imageROI, edgesROI);
 
         int64 t0 = cv::getCPUTickCount();
-        m_edgesSubPix.edgesSubPix(imageROI, m_alpha, m_low, m_high, m_edgesInPixel, m_contoursPtsInPixel, m_contoursPtsInSubPixel, m_hierarchy, m_contourMode, edgesROI);
+        m_edgesSubPix.edgesSubPix(imageROI, m_alpha, m_low, m_high, m_mask, m_edgesInPixel, m_contoursPtsInPixel, m_contoursPtsInSubPixel, m_hierarchy, m_contourMode, edgesROI);
         int64 t1 = cv::getCPUTickCount();
 
         if (m_display) {
@@ -118,6 +101,7 @@ void sp::SubPix::extractContours(int threshold)
             cv::Rect roi = getROI(roiImage.first);
             if (!roi.empty()) {
                 std::cout << "ROI " << roiImage.first << " (" << roi.x << "," << roi.y << "," << roi.width << "x" << roi.height << ")" << " : " << "execution time is " << (t1 - t0) / (double)cv::getTickFrequency() << " seconds" << std::endl;
+				std::cout << "using mask : " << !m_mask.empty() << std::endl;
                 std::cout << "nb contours (subpixel) : " << m_contoursPtsInSubPixel.size() << std::endl;
                 std::cout << "nb contours (pixel) : " << m_contoursPtsInPixel.size() << std::endl;
             }
@@ -143,7 +127,7 @@ void sp::SubPix::extractContours(int threshold)
 
                 auto contoursPts = m_roisContoursPts.find(roiImage.first);
                 auto hierarchy = m_roisHierarchy.find(roiImage.first);
-                showContours(contoursPts->second, m_image, m_contours, m_CONTOURS_WINDOW_NAME, hierarchy->second);
+                showContours(contoursPts->second, m_contours, m_CONTOURS_WINDOW_NAME, hierarchy->second);
             }
         }
         else {
@@ -170,24 +154,54 @@ void sp::SubPix::selectContour(int threshold)
 
     // show contours
     int countoursNumber = 0;
+	int lastContourId = 0;
     std::map< std::string, std::vector< sp::EdgesSubPix::Contour> >::const_iterator roiContoursPts;
     for (roiContoursPts = m_roisContoursPts.begin(); roiContoursPts != m_roisContoursPts.end(); ++roiContoursPts)
     {
+		lastContourId = countoursNumber - 1;
         countoursNumber += (int)roiContoursPts->second.size();
         if (threshold < countoursNumber) {
             break;
         }
     }
 
-    int contourId = (roiContoursPts == m_roisContoursPts.begin()) ? threshold : countoursNumber - threshold - 1;
+    int contourId = (roiContoursPts == m_roisContoursPts.begin()) ? threshold : threshold - lastContourId - 1;
     showContour(contourId, roiContoursPts->second, m_contours, m_CONTOURS_WINDOW_NAME, color);
 
     m_selectedContour = m_contoursPtsInSubPixel[contourId];
 	m_selectedContourInPixel = m_contoursPtsInPixel[contourId];
 
     std::cout << "selected contour " << contourId << std::endl;
-	std::cout << "nb of points pixel resolution : " << m_selectedContourInPixel.points.size() << std::endl;
-    std::cout << "nb of points subpixel resolution : " << m_selectedContour.points.size() << std::endl;
+	std::cout << "nb of points at pixel resolution : " << m_selectedContourInPixel.points.size() << std::endl;
+    std::cout << "nb of points at subpixel resolution : " << m_selectedContour.points.size() << std::endl;
+	std::cout << "contour area at pixel resolution : " << m_selectedContourInPixel.area << std::endl;
+	std::cout << "contour area at subpixel resolution : " << m_selectedContour.area << std::endl;
+}
+
+void sp::SubPix::selectAreaContours(int threshold)
+{
+	// check image
+	if (m_image.empty()) {
+		return;
+	}
+
+	// clean contours view
+	cv::cvtColor(m_image, m_contours, cv::COLOR_GRAY2BGR);
+
+	// show contours
+	cv::RNG rng;
+	std::map< std::string, std::vector< sp::EdgesSubPix::Contour> >::const_iterator roiContoursPts;
+	for (roiContoursPts = m_roisContoursPts.begin(); roiContoursPts != m_roisContoursPts.end(); ++roiContoursPts)
+	{
+		for (std::vector< sp::EdgesSubPix::Contour>::const_iterator iter = roiContoursPts->second.begin(); iter != roiContoursPts->second.end(); ++iter)
+		{
+			if (iter->area > threshold)
+			{
+				cv::Scalar color(rng.uniform(1, 254), rng.uniform(1, 254), rng.uniform(1, 254));
+				showContour((int) (iter - roiContoursPts->second.begin()), roiContoursPts->second, m_contours, m_CONTOURS_WINDOW_NAME, color);
+			}
+		}
+	}
 }
 
 std::map< int, std::vector<sp::EdgesSubPix::Edge> > sp::SubPix::pixelEdgesMap(const std::vector<sp::EdgesSubPix::Edge>& edges, const std::vector<sp::EdgesSubPix::Edge>& subEdges, int imageHeight)
@@ -435,7 +449,7 @@ cv::Mat sp::SubPix::displayPixelState(const std::map<int, std::map<int, bool> >&
 	cv::putText(frame, str_multiSubpixelMultiContour, cv::Point(space, 4 * space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255), 1);
 
     if (cv::getWindowProperty(windowName, cv::WindowPropertyFlags::WND_PROP_VISIBLE) == -1) {
-        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
+        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
     }
     cv::imshow(windowName, frame);
     std::cout << "Displaying pixels state; press any key (in " << windowName << ") to continue.\n";
@@ -449,12 +463,18 @@ void sp::SubPix::computePixelState(std::map< int, std::vector<sp::EdgesSubPix::E
 
     std::map<int, bool> multiSubEdgesPixel;
 
-    for (std::map< int, std::vector<sp::EdgesSubPix::Edge> > ::const_iterator iterMap = pixelEdgesMap.begin(); iterMap != pixelEdgesMap.end(); ++iterMap)
+    for (std::map< int, std::vector<sp::EdgesSubPix::Edge> > ::iterator iterMap = pixelEdgesMap.begin(); iterMap != pixelEdgesMap.end(); ++iterMap)
     {
         int pixel = iterMap->first;
 
         // check if pixel has several subpixel extractions
         std::vector<sp::EdgesSubPix::Edge> pts = iterMap->second;
+		
+		// remove duplicates
+		auto comp = [](sp::EdgesSubPix::Edge& edge1, sp::EdgesSubPix::Edge& edge2) {  return cv::norm(edge1.point - edge2.point) < 1e-3f;  };
+		auto uniquePts = std::unique(pts.begin(), pts.end(), comp);
+		pts.erase(uniquePts, pts.end());
+
         if (pts.size() > 1)
         {
             multiSubEdgesPixel[pixel] = true;
@@ -463,6 +483,7 @@ void sp::SubPix::computePixelState(std::map< int, std::vector<sp::EdgesSubPix::E
         {
             multiSubEdgesPixel[pixel] = false;
         }
+		iterMap->second = pts;
 
         std::map<int, bool> state;
         state[PixelState::MULTISUBEDGES] = multiSubEdgesPixel.find(pixel)->second;
@@ -499,8 +520,7 @@ void sp::SubPix::computePixelState(std::map< int, std::map<int, std::vector<sp::
         for (std::map<int, std::vector<sp::EdgesSubPix::Edge> >::iterator iterContour = iterMap->second.begin(); iterContour != iterMap->second.end(); ++iterContour)
         {
             // create a copy not to modify pixel map
-            std::vector<sp::EdgesSubPix::Edge> pts;
-            std::copy(iterContour->second.begin(), iterContour->second.end(), std::back_inserter(pts));
+            std::vector<sp::EdgesSubPix::Edge> pts = iterContour->second;
 
             // remove duplicates
             auto comp = [](sp::EdgesSubPix::Edge& edge1, sp::EdgesSubPix::Edge& edge2) {  return cv::norm(edge1.point - edge2.point) < 1e-3f;  };
@@ -510,6 +530,7 @@ void sp::SubPix::computePixelState(std::map< int, std::map<int, std::vector<sp::
             {
                 multiSubEdgesPixel[pixel] = true;
             }
+			iterContour->second = pts;
         }
         std::map<int, bool> state;
         state[PixelState::MULTICONTOUR] = multicontoursPixel.find(pixel)->second;
@@ -538,7 +559,7 @@ void sp::SubPix::showEdges(cv::Mat& edges, const std::string& windowName)
 {
     if (cv::getWindowProperty(windowName, cv::WindowPropertyFlags::WND_PROP_VISIBLE) == -1)
     {
-        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
+        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
     }
     cv::imshow(windowName, edges);
 }
@@ -576,9 +597,9 @@ void sp::SubPix::drawContours(const std::vector<sp::EdgesSubPix::Contour>& conto
     }
 }
 
-void sp::SubPix::showContours(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& image, cv::Mat& contours, const std::string& windowName, const std::vector<cv::Vec4i>& hierarchy, bool markers)
+void sp::SubPix::showContours(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const std::string& windowName, const std::vector<cv::Vec4i>& hierarchy, bool markers)
 {
-    if (!contours.empty()) {
+    if (!contoursImage.empty()) {
 
         if (markers) {
 
@@ -592,32 +613,32 @@ void sp::SubPix::showContours(const std::vector<sp::EdgesSubPix::Contour>& conto
                     cv::Scalar color(rng.uniform(1, 254), rng.uniform(1, 254), rng.uniform(1, 254));
 
                     // draw contour
-                    drawContour(i, contoursPts, contours, color, markers);
+                    drawContour(i, contoursPts, contoursImage, color, markers);
                 }
             }
         }
         else {
-            drawContours(contoursPts, contours, hierarchy);
+            drawContours(contoursPts, contoursImage, hierarchy);
         }
 
         // show contours
         if (cv::getWindowProperty(windowName, cv::WindowPropertyFlags::WND_PROP_VISIBLE) == -1) {
-            cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
+            cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
         }
-        cv::imshow(windowName, contours);
+        cv::imshow(windowName, contoursImage);
     }
 }
 
-void sp::SubPix::showContour(const int& contourId, const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contours, const std::string& windowName, const cv::Scalar& color, bool marker)
+void sp::SubPix::showContour(const int& contourId, const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const std::string& windowName, const cv::Scalar& color, bool marker)
 {
     // draw contour
-    drawContour(contourId, contoursPts, contours, color, marker);
+    drawContour(contourId, contoursPts, contoursImage, color, marker);
 
     // show contours
     if (cv::getWindowProperty(windowName, cv::WindowPropertyFlags::WND_PROP_VISIBLE) == -1) {
-        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
+        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
     }
-    cv::imshow(windowName, contours);
+    cv::imshow(windowName, contoursImage);
 }
 
 void sp::SubPix::parseInputPoints2YmlFile(const std::string& filename, std::vector<cv::Point>& inputPoints)
@@ -738,6 +759,11 @@ void sp::SubPix::setGrayImage(const cv::Mat& grayImage)
 void sp::SubPix::setEdgesImage(const cv::Mat& edges)
 { 
     m_edges = edges;
+}
+
+void sp::SubPix::setEdgesMask(const cv::Mat & mask)
+{
+	m_mask = mask;
 }
 
 void sp::SubPix::setROI(const std::string& roiName, const cv::Rect& roi)
@@ -960,7 +986,7 @@ cv::Mat sp::SubPix::displayMovingEdges(const std::vector<sp::EdgesSubPix::Edge>&
 	cv::putText(movingEdges, outOfPixel, cv::Point(space, 4*space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 0, 0), 1);
 
     if (cv::getWindowProperty(windowName, cv::WindowPropertyFlags::WND_PROP_VISIBLE) == -1) {
-        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
+        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
     }
     cv::imshow(windowName, movingEdges);
     std::cout << "Displaying moving edges; press any key (in " << windowName << ") to continue.\n";
@@ -1040,7 +1066,7 @@ cv::Mat sp::SubPix::displayMovingContourEdges(const std::vector<sp::EdgesSubPix:
 	cv::putText(movingEdges, outOfPixel, cv::Point(space, 4 * space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 0, 0), 1);
 
 	if (cv::getWindowProperty(windowName, cv::WindowPropertyFlags::WND_PROP_VISIBLE) == -1) {
-		cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
+        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
 	}
 	cv::imshow(windowName, movingEdges);
 	std::cout << "Displaying moving edges; press any key (in " << windowName << ") to continue.\n";
@@ -1053,38 +1079,39 @@ cv::Mat sp::SubPix::displayImageSequenceEdgesAmbiguities(int imageWidth, int ima
 	std::cout << "displayImageSequenceEdgesAmbiguities..." << std::endl;
 
 	cv::Mat ambiguityImage(imageHeight, imageWidth, CV_8UC3, cv::Scalar(0, 0, 0));
-	std::map < int, int> ambiguities;
+	std::map < int, std::vector<sp::EdgesSubPix::Edge> > ambiguitySubEdges;
 
-	for (std::map < cv::String, std::map< int, std::vector<sp::EdgesSubPix::Edge> > >::iterator imageListAmbiguitiesIter = m_imageListEdgesAmbiguities.begin(); imageListAmbiguitiesIter != m_imageListEdgesAmbiguities.end(); ++imageListAmbiguitiesIter)
+	for (std::map < cv::String, std::map< int, std::vector<sp::EdgesSubPix::Edge> > >::iterator imageListEdgesAmbiguitiesIter = m_imageListEdgesAmbiguities.begin(); imageListEdgesAmbiguitiesIter != m_imageListEdgesAmbiguities.end(); ++imageListEdgesAmbiguitiesIter)
 	{
-		for (std::map< int, std::vector<sp::EdgesSubPix::Edge> >::iterator iter = imageListAmbiguitiesIter->second.begin(); iter != imageListAmbiguitiesIter->second.end(); ++iter) {
+		for (std::map< int, std::vector<sp::EdgesSubPix::Edge> >::iterator edgesIter = imageListEdgesAmbiguitiesIter->second.begin(); edgesIter != imageListEdgesAmbiguitiesIter->second.end(); ++edgesIter) {
 
-			std::map < int, int>::iterator ambibuityIter = ambiguities.find(iter->first);
-			if (ambibuityIter != ambiguities.end()) {
-				ambibuityIter->second++;
-			}
-			else
-			{
-				ambiguities[iter->first] = 1;
+			for (std::vector<sp::EdgesSubPix::Edge>::iterator iterPts = edgesIter->second.begin(); iterPts != edgesIter->second.end(); ++iterPts) {
+				ambiguitySubEdges[edgesIter->first].push_back(*iterPts);
 			}
 		}
 	}
 
-	for (std::map < int, int>::iterator ambiguitiesIter = ambiguities.begin(); ambiguitiesIter != ambiguities.end(); ++ambiguitiesIter)
+	for (std::map < int, std::vector<sp::EdgesSubPix::Edge> >::iterator ambiguitiesIter = ambiguitySubEdges.begin(); ambiguitiesIter != ambiguitySubEdges.end(); ++ambiguitiesIter)
 	{
 		int x = int(ambiguitiesIter->first / imageHeight);
 		int y = int(ambiguitiesIter->first % imageHeight);
 
 		cv::Mat_<cv::Vec3b> _frame = ambiguityImage;
-		if (ambiguitiesIter->second>1)
+
+		std::vector< sp::EdgesSubPix::Edge> pts= ambiguitiesIter->second;
+		auto comp = [](sp::EdgesSubPix::Edge& edge1, sp::EdgesSubPix::Edge& edge2) {  return cv::norm(edge1.point - edge2.point) < 1e-3f;  };
+		auto uniquePts = std::unique(pts.begin(), pts.end(), comp);
+		pts.erase(uniquePts, pts.end());
+
+		if (pts.size() > 1)
 		{
-			// pixel has multi edges
+			// pixel has multi subedges
 			_frame(y, x)[0] = 0;
 			_frame(y, x)[1] = 0;
 			_frame(y, x)[2] = 255;
 		}
 		else {
-			// pixel has only one edge
+			// pixel has only one subedge
 			_frame(y, x)[0] = 255;
 			_frame(y, x)[1] = 255;
 			_frame(y, x)[2] = 255;
@@ -1093,7 +1120,7 @@ cv::Mat sp::SubPix::displayImageSequenceEdgesAmbiguities(int imageWidth, int ima
 	}
 
 	if (cv::getWindowProperty(windowName, cv::WindowPropertyFlags::WND_PROP_VISIBLE) == -1) {
-		cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
+        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
 	}
 
 	// legend
@@ -1114,60 +1141,44 @@ cv::Mat sp::SubPix::displayImageSequenceContoursAmbiguities(int imageWidth, int 
 	std::cout << "displayImageSequenceContoursAmbiguities..." << std::endl;
 
 	cv::Mat ambiguityImage(imageHeight, imageWidth, CV_8UC3, cv::Scalar(0, 0, 0));
-	std::map < int, int> ambiguities;
+	std::map < int, std::vector<sp::EdgesSubPix::Edge> > ambiguitySubEdges;
 
 	for (std::map < cv::String, std::map< int, std::map<int, std::vector<sp::EdgesSubPix::Edge> > > >::iterator imageListContoursAmbiguitiesIter = m_imageListContoursAmbiguities.begin(); imageListContoursAmbiguitiesIter != m_imageListContoursAmbiguities.end(); ++imageListContoursAmbiguitiesIter)
 	{
 		for (std::map< int, std::map<int, std::vector<sp::EdgesSubPix::Edge> > >::iterator edgesIter = imageListContoursAmbiguitiesIter->second.begin(); edgesIter != imageListContoursAmbiguitiesIter->second.end(); ++edgesIter) {
 
-			std::map < int, int>::iterator ambibuityIter = ambiguities.find(edgesIter->first);
-
-			int contours = (int)edgesIter->second.size();
-			if (contours > 1) {
-				ambiguities[edgesIter->first] = contours;
-			}
-			
+			// extract edges from multi contours
+			std::vector< sp::EdgesSubPix::Edge> pts;
 			for (std::map<int, std::vector<sp::EdgesSubPix::Edge> >::iterator contoursIter = edgesIter->second.begin(); contoursIter != edgesIter->second.end(); ++contoursIter) {
-
-				std::map < int, int>::iterator ambibuityIter = ambiguities.find(edgesIter->first);
-				if (ambibuityIter != ambiguities.end()) {
-
-					std::vector<sp::EdgesSubPix::Edge> pts;
-					std::copy(contoursIter->second.begin(), contoursIter->second.end(), std::back_inserter(pts));
-
-					// remove duplicates
-					auto comp = [](sp::EdgesSubPix::Edge& edge1, sp::EdgesSubPix::Edge& edge2) {  return cv::norm(edge1.point - edge2.point) < 1e-3f;  };
-					auto uniquePts = std::unique(pts.begin(), pts.end(), comp);
-					pts.erase(uniquePts, pts.end());		
-					if (pts.size() > 1)
-					{
-						ambibuityIter->second++;
-					}
-				}
-				else
-				{
-					ambiguities[edgesIter->first] = 1;
+				for (std::vector<sp::EdgesSubPix::Edge>::const_iterator contoursPtsIter = contoursIter->second.begin(); contoursPtsIter != contoursIter->second.end(); ++contoursPtsIter) {
+					ambiguitySubEdges[edgesIter->first].push_back(*contoursPtsIter);
 				}
 			}
 		}
 	}
 
-	for (std::map < int, int>::iterator ambiguitiesIter = ambiguities.begin(); ambiguitiesIter != ambiguities.end(); ++ambiguitiesIter)
+	for (std::map < int, std::vector<sp::EdgesSubPix::Edge> >::iterator ambiguitiesIter = ambiguitySubEdges.begin(); ambiguitiesIter != ambiguitySubEdges.end(); ++ambiguitiesIter)
 	{
 		int x = int(ambiguitiesIter->first / imageHeight);
 		int y = int(ambiguitiesIter->first % imageHeight);
 
 		cv::Mat_<cv::Vec3b> _frame = ambiguityImage;
 
-		if (ambiguitiesIter->second>1)
+		// extract edges from multi contours
+		std::vector< sp::EdgesSubPix::Edge> pts = ambiguitiesIter->second;
+		auto comp = [](sp::EdgesSubPix::Edge& edge1, sp::EdgesSubPix::Edge& edge2) {  return cv::norm(edge1.point - edge2.point) < 1e-3f;  };
+		auto uniquePts = std::unique(pts.begin(), pts.end(), comp);
+		pts.erase(uniquePts, pts.end());
+
+		if (pts.size() > 1)
 		{
-			// pixel has multi edges
+			// pixel has multi subedges
 			_frame(y, x)[0] = 0;
 			_frame(y, x)[1] = 0;
 			_frame(y, x)[2] = 255;
 		}
 		else {
-			// pixel has only one edge
+			// pixel has only one subedge
 			_frame(y, x)[0] = 255;
 			_frame(y, x)[1] = 255;
 			_frame(y, x)[2] = 255;
@@ -1176,7 +1187,7 @@ cv::Mat sp::SubPix::displayImageSequenceContoursAmbiguities(int imageWidth, int 
 	}
 
 	if (cv::getWindowProperty(windowName, cv::WindowPropertyFlags::WND_PROP_VISIBLE) == -1) {
-		cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
+        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
 	}
 
 	// legend

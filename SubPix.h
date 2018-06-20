@@ -8,7 +8,7 @@
 
 namespace sp
 {
-    class CV_EXPORTS SubPix
+    class SubPix
 	{
 	public:
 		SubPix();
@@ -23,15 +23,17 @@ namespace sp
 		void extractEdges(int threshold);
 		void extractContours(int threshold);
 		void selectContour(int threshold);
+		void selectAreaContours(int threshold);
 
 		void setGrayImage(const cv::Mat& grayImage);
 		void setEdgesImage(const cv::Mat& edges);
+		void setEdgesMask(const cv::Mat& mask);
 		void contourVec2PtsVecVecForDisplay(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, std::vector < std::vector< cv::Point > >& contours);
 		void showEdges(cv::Mat& edges, const std::string& windowName);
 		void drawContour(const int& contourId, const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const cv::Scalar& color, bool markers = false);
 		void drawContours(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const std::vector<cv::Vec4i>& hierarchy);
-		void showContours(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& image, cv::Mat& contours, const std::string& windowName, const std::vector<cv::Vec4i>& hierarchy, bool markers = false);
-		void showContour(const int& contourId, const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contours, const std::string& windowName, const cv::Scalar& color, bool marker = false);
+        void showContours(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const std::string& windowName, const std::vector<cv::Vec4i>& hierarchy, bool markers = false);
+        void showContour(const int& contourId, const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const std::string& windowName, const cv::Scalar& color, bool marker = false);
 		void destroyWindows();
 		void parseInputPoints2YmlFile(const std::string& filename, std::vector<cv::Point>& inputPoints);
 		void saveEdges2YmlFile(const std::string& filename, cv::Mat& edges);
@@ -68,21 +70,22 @@ namespace sp
 
 		cv::Mat m_image;
 		cv::Mat m_edges;
+		cv::Mat m_mask;
 		cv::Mat m_contours;
 		cv::String m_imageFile;
 		cv::String m_inputPointsYmlFile;
 		cv::String m_edgesFile;
 		cv::String m_edgesImage;
 		cv::String m_contoursImage;
-		int m_low = 13;
+        int m_low = 3;
 		int m_high = 100;
 		double m_alpha = 1.0;
-		int m_contourMode = 1;
+		int m_contourMode = cv::RetrievalModes::RETR_EXTERNAL;
 		std::vector<cv::Point> m_inputPoints;
 
 		int m_nbOfEdges = 0;
 		int m_nbOfContours = 0;
-		int m_maxContours = 1000;
+		int m_maxContours = 2000;
         bool m_display = false;
 
 		const std::string INPUT_GRAYIMAGE = "Input gray image";

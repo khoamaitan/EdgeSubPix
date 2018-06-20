@@ -1,31 +1,3 @@
-//Copyright(c) 2015, songyuncen / 2018, Fabien Contival
-//All rights reserved.
-//
-//Redistribution and use in source and binary forms, with or without
-//modification, are permitted provided that the following conditions are met :
-//
-//*Redistributions of source code must retain the above copyright notice, this
-//list of conditions and the following disclaimer.
-//
-//* Redistributions in binary form must reproduce the above copyright notice,
-//this list of conditions and the following disclaimer in the documentation
-//and / or other materials provided with the distribution.
-//
-//* Neither the name of EdgesSubPix nor the names of its
-//contributors may be used to endorse or promote products derived from
-//this software without specific prior written permission.
-//
-//THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-//AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-//IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-//DISCLAIMED.IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-//FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-//DAMAGES(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//	SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-//	CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-//	OR TORT(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/ocl.hpp>
 #include <iostream>
@@ -52,6 +24,11 @@ void extractContours(int threshold, void*)
 void contourSelector(int threshold, void*)
 {	
 	detector.selectContour(threshold);
+}
+
+void contourAreaSelector(int threshold, void*)
+{
+	detector.selectAreaContours(threshold);
 }
 
 std::vector < std::string > split(cv::String imageList)
@@ -88,10 +65,10 @@ int main(int argc, char *argv[])
 		"{low            |13            | low threshold                 }"
 		"{high           |100           | high threshold                }"
 		"{mode    |1     | edges : 0, contours : 1      }"
-		"{contourMode    |1             | same as cv::findContours      }"
-		"{alpha          |1.0           | gaussian alpha                }"
+		"{contourMode    |0             | same as cv::findContours      }"
+		"{alpha          |0.0           | gaussian alpha                }"
 		"{@outputFolderPath   |results        | folder path for results                }"
-		"{computeImageAmbiguity          |0           | compute image ambiguities (all image must be of the same size   }"
+		"{computeImageAmbiguity          |true           | compute image ambiguities (all image must be of the same size   }"
 		"{@edgesAmbiguityImage |edgesAmbiguityImage.pgm | image for edges ambiguities between images of a same sequence }"
 		"{@contoursAmbiguityImage |contoursAmbiguityImage.pgm | image for contours ambiguities between images of a same sequence }";
 
@@ -171,6 +148,10 @@ int main(int argc, char *argv[])
 
 		// read input image
 		detector.m_image = imread(imageFile, cv::IMREAD_GRAYSCALE);
+		cv::Mat framePatternSmooth;
+		cv::bilateralFilter(detector.m_image, framePatternSmooth, 5, 50, 50);
+		detector.m_image = framePatternSmooth;
+
 		if (detector.m_image.empty()) {
 			std::cout << "Cannot read input image..." << std::endl;
 			return 0;
@@ -227,7 +208,9 @@ int main(int argc, char *argv[])
 			if (detector.m_display) {
 				int firstContour = 0;
 				int lastContour = std::max(firstContour, (int)detector.m_nbOfContours - 1);
+				int area = 10;
 				cv::createTrackbar("Contour Selector:", detector.m_CONTOURS_WINDOW_NAME, &firstContour, lastContour, contourSelector);
+				cv::createTrackbar("Contours Area Selector:", detector.m_CONTOURS_WINDOW_NAME, &area, 1000, contourAreaSelector);
 			}
 		}
 		cv::waitKey(0);

@@ -25,4 +25,9 @@ target_link_libraries(EdgesSubPix ${OpenCV_LIBS})
 add_executable(Edge test_EdgesSubPix.cpp)
 target_link_libraries(Edge EdgesSubPix ${OpenCV_LIBS})
 
+install(TARGETS EdgesSubPix DESTINATION lib/Debug CONFIGURATIONS Debug)
+install(TARGETS EdgesSubPix DESTINATION lib/Release CONFIGURATIONS Release)
+install(TARGETS Edge DESTINATION bin/Debug CONFIGURATIONS Debug)
+install(TARGETS Edge DESTINATION bin/Release CONFIGURATIONS Release)
+
 

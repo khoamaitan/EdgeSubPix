@@ -19,7 +19,7 @@ sp::EdgesSubPix::~EdgesSubPix()
 
 }
 
-static void getCannyKernel(cv::OutputArray _d, double alpha)
+void getCannyKernel(cv::OutputArray _d, double alpha)
 {
 	// minmimum alpha has to be one
 	if (alpha == 0)
@@ -55,7 +55,7 @@ static void getCannyKernel(cv::OutputArray _d, double alpha)
 }
 
 // non-maximum supression and hysteresis
-static void postCannyFilter(const cv::Mat &src, cv::Mat &dx, cv::Mat &dy, int low, int high, cv::Mat &dst)
+void postCannyFilter(const cv::Mat &src, cv::Mat &dx, cv::Mat &dy, int low, int high, cv::Mat &dst)
 {
     ptrdiff_t mapstep = src.cols + 2;
 	cv::AutoBuffer<uchar> buffer((src.cols + 2)*(src.rows + 2) + mapstep * 3 * sizeof(int));
@@ -265,13 +265,13 @@ static void postCannyFilter(const cv::Mat &src, cv::Mat &dx, cv::Mat &dy, int lo
     }
 }
 
-static inline  double getAmplitude(cv::Mat &dx, cv::Mat &dy, int i, int j)
+double getAmplitude(cv::Mat &dx, cv::Mat &dy, int i, int j)
 {
 	cv::Point2d mag(dx.at<short>(i, j), dy.at<short>(i, j));
     return norm(mag);
 }
 
-static inline void getMagNeighbourhood(cv::Mat &dx, cv::Mat &dy, cv::Point &p, int w, int h, std::vector<double> &mag)
+void getMagNeighbourhood(cv::Mat &dx, cv::Mat &dy, cv::Point &p, int w, int h, std::vector<double> &mag)
 {
     int top = p.y - 1 >= 0 ? p.y - 1 : p.y;
     int down = p.y + 1 < h ? p.y + 1 : p.y;
@@ -289,7 +289,7 @@ static inline void getMagNeighbourhood(cv::Mat &dx, cv::Mat &dy, cv::Point &p, i
     mag[8] = getAmplitude(dx, dy, down, right);
 }
 
-static inline void get2ndFacetModelIn3x3(std::vector<double> &mag, std::vector<double> &a)
+void get2ndFacetModelIn3x3(std::vector<double> &mag, std::vector<double> &a)
 {
     a[0] = (-mag[0] + 2.0 * mag[1] - mag[2] + 2.0 * mag[3] + 5.0 * mag[4] + 2.0 * mag[5] - mag[6] + 2.0 * mag[7] - mag[8]) / 9.0;
     a[1] = (-mag[0] + mag[2] - mag[3] + mag[5] - mag[6] + mag[8]) / 6.0;
@@ -304,7 +304,7 @@ static inline void get2ndFacetModelIn3x3(std::vector<double> &mag, std::vector<d
    dfdrr, dfdrc, and dfdcc, and sort them in descending order according to
    their absolute values. 
 */
-static inline void eigenvals(std::vector<double> &a, double eigval[2], double eigvec[2][2])
+void eigenvals(std::vector<double> &a, double eigval[2], double eigvec[2][2])
 {
     // derivatives
     // fx = a[1], fy = a[2]
@@ -374,7 +374,7 @@ static inline void eigenvals(std::vector<double> &a, double eigval[2], double ei
     }
 }
 
-static inline double vector2angle(double x, double y)
+double vector2angle(double x, double y)
 {
     double a = std::atan2(y, x);
     return a >= 0.0 ? a : a + CV_2PI;
@@ -442,6 +442,7 @@ void extractSubPixPoints(cv::Mat &dx, cv::Mat &dy, std::vector<sp::EdgesSubPix::
         contour.direction.resize(icontour.size());
         contour.nx.resize(icontour.size());
         contour.ny.resize(icontour.size());
+		contour.area = cv::contourArea(icontour);
 
 #if defined(_OPENMP) && defined(NDEBUG)
 #pragma omp parallel for
@@ -470,8 +471,8 @@ void extractSubPixPoints(cv::Mat &dx, cv::Mat &dy, std::vector<sp::EdgesSubPix::
             float y = (float)icontour[j].y;
             if (fabs(px) <= 0.5 && fabs(py) <= 0.5)
             { 
-				x += (float)(px + 0.5);
-				y += (float)(py + 0.5);
+                x += (float)(px+0.5);
+                y += (float)(py+0.5);
             }
             contour.points[j] = cv::Point2f(x, y);
             contour.response[j] = (float)(a[0] / scale);
@@ -494,6 +495,7 @@ void extractPixPoints(std::vector<std::vector<cv::Point> > &contoursInPixel, std
 		contour.direction.resize(icontour.size());
         contour.nx.resize(icontour.size());
         contour.ny.resize(icontour.size());
+		contour.area = cv::contourArea(icontour);
 
 #if defined(_OPENMP) && defined(NDEBUG)
 #pragma omp parallel for
@@ -584,7 +586,7 @@ void roi2Image(const cv::Mat& gray, std::vector<cv::Point2f> &edges)
 	}
 }
 
-void edgesPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<sp::EdgesSubPix::Edge>& edgesInPixel, cv::Mat& edges, cv::Mat& dx, cv::Mat& dy)
+void edgesPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector<sp::EdgesSubPix::Edge>& edgesInPixel, cv::Mat& edges, cv::Mat& dx, cv::Mat& dy)
 {
 	// smooth edges noise
 	cv::Mat blur;
@@ -596,6 +598,7 @@ void edgesPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<
 		blur = gray;
 	}
 
+	// gradient images
 	cv::Mat d;
 	getCannyKernel(d, alpha);
 	cv::Mat one = cv::Mat::ones(cv::Size(1, 1), CV_16S);
@@ -609,15 +612,20 @@ void edgesPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<
 	int lowThresh = cvRound(scale * low);
 	int highThresh = cvRound(scale * high);
 	postCannyFilter(gray, dx, dy, lowThresh, highThresh, edges);
+	
+	// apply mask
+	if (!mask.empty()) {
+		cv::bitwise_and(edges, mask, edges);
+	}
 
 	// format edges
 	extractPixPoints(edges, edgesInPixel);
 }
 
-void contoursPix(const cv::Mat &gray, double alpha, int low, int high, std::vector < sp::EdgesSubPix::Edge > & edgesInPixel, std::vector<sp::EdgesSubPix::Contour>& contoursPix, cv::OutputArray hierarchy, int mode, cv::Mat& dx, cv::Mat& dy, cv::Mat& edges)
+void contoursPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector < sp::EdgesSubPix::Edge > & edgesInPixel, std::vector<sp::EdgesSubPix::Contour>& contoursPix, cv::OutputArray hierarchy, int mode, cv::Mat& dx, cv::Mat& dy, cv::Mat& edges)
 {
 	// extract edges
-	edgesPix(gray, alpha, low, high, edgesInPixel, edges, dx, dy);
+	edgesPix(gray, alpha, low, high, mask, edgesInPixel, edges, dx, dy);
 
 	// extract contours
 	std::vector<std::vector<cv::Point> > contoursInPixel;
@@ -631,12 +639,12 @@ void contoursPix(const cv::Mat &gray, double alpha, int low, int high, std::vect
 //          INTERFACE FUNCTIONS
 //---------------------------------------------------------------------
 
-void sp::EdgesSubPix::edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<sp::EdgesSubPix::Edge>& edgesInPixel, std::vector<sp::EdgesSubPix::Edge>& edgesInSubPixel, cv::Mat& edges)
+void sp::EdgesSubPix::edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector<sp::EdgesSubPix::Edge>& edgesInPixel, std::vector<sp::EdgesSubPix::Edge>& edgesInSubPixel, cv::Mat& edges)
 {
 	// extract edges
 	cv::Mat dx;
 	cv::Mat dy;
-	edgesPix(gray, alpha, low, high, edgesInPixel, edges, dx, dy);
+	edgesPix(gray, alpha, low, high, mask, edgesInPixel, edges, dx, dy);
 
 	// subpixel position extraction with steger's method and facet model 2nd polynominal in 3x3 neighbourhood
 	extractSubPixPoints(dx, dy, edgesInPixel, edgesInSubPixel);
@@ -646,13 +654,13 @@ void sp::EdgesSubPix::edgesSubPix(const cv::Mat &gray, double alpha, int low, in
 	roi2Image(gray, edgesInSubPixel);
 }
 
-void sp::EdgesSubPix::edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<sp::EdgesSubPix::Edge>& edgesInPixel, std::vector<sp::EdgesSubPix::Contour>& contoursInPixel,
+void sp::EdgesSubPix::edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector<sp::EdgesSubPix::Edge>& edgesInPixel, std::vector<sp::EdgesSubPix::Contour>& contoursInPixel,
 	std::vector<sp::EdgesSubPix::Contour> &contoursInSubPixel, cv::OutputArray hierarchy, int mode, cv::Mat& edges)
 {
 	// extract contours
 	cv::Mat dx;
 	cv::Mat dy;
-	contoursPix(gray, alpha, low, high, edgesInPixel, contoursInPixel, hierarchy, mode, dx, dy, edges);
+	contoursPix(gray, alpha, low, high, mask, edgesInPixel, contoursInPixel, hierarchy, mode, dx, dy, edges);
 
 	// subpixel position extraction with steger's method and facet model 2nd polynominal in 3x3 neighbourhood
 	extractSubPixPoints(dx, dy, contoursInPixel, contoursInSubPixel);
@@ -661,11 +669,4 @@ void sp::EdgesSubPix::edgesSubPix(const cv::Mat &gray, double alpha, int low, in
 	roi2Image(gray, edgesInPixel);
 	roi2Image(gray, contoursInPixel);
 	roi2Image(gray, contoursInSubPixel);
-}
-
-void sp::EdgesSubPix::edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<sp::EdgesSubPix::Edge>& edgesInPixel, std::vector<sp::EdgesSubPix::Contour>& contoursInPixel, std::vector<sp::EdgesSubPix::Contour> &contoursInSubPixel)
-{
-	std::vector<cv::Vec4i> hierarchy;
-	cv::Mat edges;
-	edgesSubPix(gray, alpha, low, high, edgesInPixel, contoursInPixel, contoursInSubPixel, hierarchy, cv::RETR_LIST, edges);
 }

@@ -6,7 +6,7 @@
 
 namespace sp
 {
-	class EdgesSubPix
+	class CV_EXPORTS EdgesSubPix
 	{
 	public:
 		struct Contour
@@ -16,6 +16,7 @@ namespace sp
 			std::vector<float> response;
             std::vector<float> nx;
             std::vector<float> ny;
+			double area=0.0;
 
 			Contour() {}
 			Contour(const Contour& contour)
@@ -25,6 +26,7 @@ namespace sp
 				response = contour.response;
                 nx = contour.nx;
                 ny = contour.ny;
+				area = contour.area;
 			}
 		};
 
@@ -54,14 +56,11 @@ namespace sp
 		~EdgesSubPix();
 
 		// only 8-bit
-		void edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<Edge>& edgesInPixels, std::vector<Edge>& edgesInSubPixel, cv::Mat& edges);
+		void edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector<Edge>& edgesInPixels, std::vector<Edge>& edgesInSubPixel, cv::Mat& edges);
 
-		void edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<Edge>& edgesInPixel, std::vector<Contour> &contoursInPixel,
+		void edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector<Edge>& edgesInPixel, std::vector<Contour> &contoursInPixel,
 			std::vector<Contour> &contoursInSubPixel, cv::OutputArray hierarchy,
 			int mode, cv::Mat& egdes);
-
-		void edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<Edge>& edgesInPixel, std::vector<Contour> &contoursInPixel,
-			std::vector<Contour> &contoursInSubPixel);
 	};
 }
 
