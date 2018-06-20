@@ -23,6 +23,8 @@ namespace sp
 			std::vector<float> response;      // amplitude of the gradient in edges point,
 			std::vector<float> nx;			  // amplitude of the gradient in x direction,
 			std::vector<float> ny;			  // amplitude of the gradient in y direction
+			double length;					  // length of the contour
+			double area;					  // area of the contour
 		};
 		struct Edge
 		{
@@ -34,14 +36,8 @@ namespace sp
 			float ny;						  // amplitude of the gradient in y direction
 		};
 		// gray             - only support 8-bit grayscale
-		void edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<Edge>& edgesInPixels, std::vector<Edge>& edgesInSubPixel, cv::Mat& edges);
-
-		// gray             - only support 8-bit grayscale
-		// hierarchy, mode  - have the same meanings as in cv::findContours
-		void edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<Edge>& edgesInPixel, std::vector<Contour> &contoursInPixel, std::vector<Contour> &contoursInSubPixel, cv::OutputArray hierarchy, int mode, cv::Mat& egdes);
-
-		// mode = RETR_LIST	
-		void edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, std::vector<Edge>& edgesInPixel, std::vector<Contour> &contoursInPixel, std::vector<Contour> &contoursInSubPixel);
+		void edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector<Edge>& edgesInPixels, std::vector<Edge>& edgesInSubPixel, cv::Mat& edges);
+		void contoursSubPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector<Edge>& edgesInPixel, std::vector<Contour> &contoursInPixel,	std::vector<Contour> &contoursInSubPixel, int mode, cv::Mat& egdes);
 	};
 }
 ```
