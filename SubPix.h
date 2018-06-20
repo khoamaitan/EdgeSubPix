@@ -18,22 +18,49 @@ namespace sp
 			MULTICONTOUR=0,
 			MULTISUBEDGES,
 			TOTAL
-		} ;
+		};
+
+		enum Threshold {
+			NB_OF_PTS = 0,
+			LENGTH,
+			AREA,
+			ORIENTATION,
+			NONE,
+			NB_OF_THRESHOLDS
+		};
 
 		void extractEdges(int threshold);
 		void extractContours(int threshold);
 		void selectContour(int threshold);
 		void selectAreaContours(int threshold);
+		void selectLengthContours(int threshold);
+		void selectNbOfPtsContours(int threshold);
+		void selectOrientedContoursParts(int threshold);
+		void filterContours(int threshold, void* type);
+	
+		bool nbPtsFilter(const sp::EdgesSubPix::Contour& contour, double threshold);
+		bool lengthFilter(const sp::EdgesSubPix::Contour& contour, double threshold);
+		bool areaFilter(const sp::EdgesSubPix::Contour& contour, double threshold);
+		bool orientationPtFilter(const cv::Point2f& pt, cv::Point2f lineDir, double orientationTolerance, double angle_ref);
+		cv::Vec4f contourOrientationLine(const std::vector< cv::Point2f >& pts);
+		void filterContours(std::vector<sp::EdgesSubPix::Contour>& contours);
 
+		void updateEdgesListFromROIs();
+		void updateContoursListFromROIs();
+
+		void resetExtraction();
+		void resetAmbiguityImages();
 		void setGrayImage(const cv::Mat& grayImage);
 		void setEdgesImage(const cv::Mat& edges);
 		void setEdgesMask(const cv::Mat& mask);
-		void contourVec2PtsVecVecForDisplay(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, std::vector < std::vector< cv::Point > >& contours);
-		void showEdges(cv::Mat& edges, const std::string& windowName);
-		void drawContour(const int& contourId, const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const cv::Scalar& color, bool markers = false);
-		void drawContours(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const std::vector<cv::Vec4i>& hierarchy);
-        void showContours(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const std::string& windowName, const std::vector<cv::Vec4i>& hierarchy, bool markers = false);
-        void showContour(const int& contourId, const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const std::string& windowName, const cv::Scalar& color, bool marker = false);
+		void contourVec2VecForDisplay(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, std::vector < std::vector< cv::Point > >& contours, std::vector < cv::Vec4i >& hierarchy);
+		void show(cv::Mat& image, const std::string& windowName);
+		void setEdgesFromContours(const std::vector< sp::EdgesSubPix::Contour> & contoursPts, const cv::Mat& contours, cv::Mat& edges);
+		void showEdgesFromContours(const std::vector< sp::EdgesSubPix::Contour> & contoursPts, const cv::Mat& contours, cv::Mat& edges, const std::string& windowName = "Edges from contours");
+		void drawContour(const int& contourId, const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const cv::Scalar& color, bool markers = false, int markerType = cv::MarkerTypes::MARKER_CROSS, bool normals=false, int markersDisplayRatio=10, int normalsDisplayRatio=10, int contourThickness = 1);
+		void drawContours(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage);
+		void showContours(const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const std::string& windowName, bool markers = false, int markerType = cv::MarkerTypes::MARKER_CROSS, bool normals=false, int markersDisplayRatio=10, int normalsDisplayRatio=10, int contourThickness = 1);
+        void showContour(const int& contourId, const std::vector<sp::EdgesSubPix::Contour>& contoursPts, cv::Mat& contoursImage, const std::string& windowName, const cv::Scalar& color, bool marker = false, int markerType = cv::MarkerTypes::MARKER_CROSS, bool normals=false, int markersDisplayRatio=10, int normalsDisplayRatio=10, bool selectContourStepByStep = false, int contourThickness = 1);
 		void destroyWindows();
 		void parseInputPoints2YmlFile(const std::string& filename, std::vector<cv::Point>& inputPoints);
 		void saveEdges2YmlFile(const std::string& filename, cv::Mat& edges);
@@ -61,7 +88,9 @@ namespace sp
 
         std::string m_IMAGE_WINDOW_NAME = "Image";
         std::string m_EDGES_WINDOW_NAME = "Edges";
+		std::string m_EDGES_FROM_CONTOURS = "Edges from contours";
         std::string m_CONTOURS_WINDOW_NAME = "Contours" ;
+		std::string m_FILTERED_CONTOURS_WINDOW_NAME = "Filtered contours";
 		std::string m_PIXEL_STATE_AFTER_EDGES_DETECTION_WINDOW_NAME = "Pixels state after edges detection";
 		std::string m_PIXEL_STATE_AFTER_CONTOURS_DETECTION_WINDOW_NAME = "Pixels state after contours detection";
 		std::string m_MOVING_EDGES_WINDOW_NAME = "Moving edges";
@@ -72,6 +101,7 @@ namespace sp
 		cv::Mat m_edges;
 		cv::Mat m_mask;
 		cv::Mat m_contours;
+		cv::Mat m_edgesFromContours;
 		cv::String m_imageFile;
 		cv::String m_inputPointsYmlFile;
 		cv::String m_edgesFile;
@@ -87,6 +117,26 @@ namespace sp
 		int m_nbOfContours = 0;
 		int m_maxContours = 2000;
         bool m_display = false;
+		bool m_markers = false;
+		int m_markerType = cv::MarkerTypes::MARKER_TILTED_CROSS;
+		bool m_normals = false;
+		bool m_selectContourStepByStep = false;
+		int m_contourStep = 0;
+		int m_selectedContourId = 0;
+		int m_contourStepId = 0;
+
+		bool m_filterNbOfPoints = true;
+		bool m_filterLength = true;
+		bool m_filterArea = true;
+		bool m_filterOrientation = true;
+		bool m_otherFilter = false;
+
+		double m_length_threshold = 10;
+		double m_nbOfPts_threshold = 10;
+		double m_area_threshold = 10;
+		double m_orientationTolerance = 30;
+		double m_angle_ref = 0;
+
 
 		const std::string INPUT_GRAYIMAGE = "Input gray image";
 		const std::string EDGES_IMAGE = "Edges image";
@@ -97,11 +147,10 @@ namespace sp
 		std::vector<sp::EdgesSubPix::Edge> m_edgesInSubPixel;
 		std::vector<sp::EdgesSubPix::Contour> m_contoursPtsInSubPixel;
 		std::vector<sp::EdgesSubPix::Contour> m_contoursPtsInPixel;
-		std::vector<cv::Vec4i> m_hierarchy;
 
 		std::map < std::string, std::vector < EdgesSubPix::Edge > > m_roisEdgesPts;
 		std::map < std::string, std::vector < sp::EdgesSubPix::Contour> > m_roisContoursPts;
-		std::map < std::string, std::vector<cv::Vec4i> > m_roisHierarchy;
+		std::map < std::string, std::vector < sp::EdgesSubPix::Contour> > m_roisContoursPtsFiltered;
 		sp::EdgesSubPix::Contour m_selectedContour;
 		sp::EdgesSubPix::Contour m_selectedContourInPixel;
 

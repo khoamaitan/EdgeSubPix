@@ -31,6 +31,26 @@ void contourAreaSelector(int threshold, void*)
 	detector.selectAreaContours(threshold);
 }
 
+void contourLengthSelector(int threshold, void*)
+{
+	detector.selectLengthContours(threshold);
+}
+
+void contourNbOfPtsSelector(int threshold, void*)
+{
+	detector.selectNbOfPtsContours(threshold);
+}
+
+void contourOrientationPtsSelector(int threshold, void*)
+{
+	detector.selectOrientedContoursParts(threshold);
+}
+
+void filterContoursSelector(int threshold, void* type)
+{
+	detector.filterContours(threshold, type);
+}
+
 std::vector < std::string > split(cv::String imageList)
 {
 	std::string imageList_no_separator = std::string(imageList);
@@ -54,10 +74,10 @@ int main(int argc, char *argv[])
 		"{edgesInPixelYmlFile |edgesInPixel.yml| file for edges in pixel         }"
 		"{edgesInSubPixelYmlFile |edgesInSubPixel.yml| file for edges in subpixel         }"
 		"{pixelEdgesMapYmlFile |pixelEdgesMap.yml| file for pixel edges map         }"
-		"{@movingEdgesImage |movingEdges.pgm | image for pixel moving edges after subpixel edges detection }"
-		"{@pixelEdgesMapImage |pixelEdgesMap.pgm | image for pixel state after subpixel edges detection }"
-		"{@contoursImage |contours.pgm | image for contours detection result }"
-		"{@pixelContoursMapImage |pixelContoursMap.pgm | image for pixel state after subpixel contours detection }"
+		"{@movingEdgesImage |movingEdges.ppm | image for pixel moving edges after subpixel edges detection }"
+		"{@pixelEdgesMapImage |pixelEdgesMap.ppm | image for pixel state after subpixel edges detection }"
+		"{@contoursImage |contours.ppm | image for contours detection result }"
+		"{@pixelContoursMapImage |pixelContoursMap.ppm | image for pixel state after subpixel contours detection }"
 		"{contoursInPixelYmlFile |contoursInPixel.yml| file for contours in pixel          }"
 		"{contoursInSubPixelYmlFile |contoursInSubPixel.yml| file for contours in subpixel         }"
 		"{pixelContoursYmlFile |pixelEdgesMap.yml| file for pixel contours map         }"
@@ -66,11 +86,13 @@ int main(int argc, char *argv[])
 		"{high           |100           | high threshold                }"
 		"{mode    |1     | edges : 0, contours : 1      }"
 		"{contourMode    |0             | same as cv::findContours      }"
-		"{alpha          |0.0           | gaussian alpha                }"
+		"{alpha          |1.0           | gaussian alpha                }"
 		"{@outputFolderPath   |results        | folder path for results                }"
 		"{computeImageAmbiguity          |true           | compute image ambiguities (all image must be of the same size   }"
-		"{@edgesAmbiguityImage |edgesAmbiguityImage.pgm | image for edges ambiguities between images of a same sequence }"
-		"{@contoursAmbiguityImage |contoursAmbiguityImage.pgm | image for contours ambiguities between images of a same sequence }";
+		"{selectContourStepByStep          |true           | select the contour step by step mode  }"
+		"{filterContours          |false           | activate contours filtering }"
+		"{@edgesAmbiguityImage |edgesAmbiguityImage.ppm | image for edges ambiguities between images of a same sequence }"
+		"{@contoursAmbiguityImage |contoursAmbiguityImage.ppm | image for contours ambiguities between images of a same sequence }";
 
 	// parse inputs
 	cv::CommandLineParser parser(argc, argv, keys);
@@ -109,6 +131,8 @@ int main(int argc, char *argv[])
 	cv::String pixelContoursMapYmlFile = parser.get<cv::String>("pixelContoursMapYmlFile");
 	cv::String pixelContoursMapImage = parser.get<cv::String>("@pixelContoursMapImage");
 	bool computeImageAmbiguity = parser.get<bool>("computeImageAmbiguity");
+	bool selectContourStepByStep = parser.get<bool>("selectContourStepByStep");
+	bool filterContours = parser.get<bool>("filterContours");
 	cv::String outputFolderPath = parser.get<cv::String>("@outputFolderPath");
 	cv::String edgesAmbiguityImage = parser.get<cv::String>("@edgesAmbiguityImage");
 	cv::String contoursAmbiguityImage = parser.get<cv::String>("@contoursAmbiguityImage");
@@ -124,7 +148,7 @@ int main(int argc, char *argv[])
 	detector.m_alpha = alpha;
 	detector.m_contourMode = contourMode;
 	detector.m_display = true;
-
+	
 	// get images
 	std::vector< std::string > imageFiles = split(imageFilesList);
 
@@ -134,23 +158,36 @@ int main(int argc, char *argv[])
 	std::string createFolderCommand = "mkdir " + outputFolderPath;
 	system(createFolderCommand.c_str());
 
-	for (int i = 0; i < (int)imageFiles.size(); i++) {
-		
+	for (int i = 0; i < (int)imageFiles.size(); i++) 
+	{	
 		std::stringstream ss;
 		ss << i;
 		cv::String imageFile = imageFiles[i];
 
+		// reset extraction
+		detector.resetExtraction();
+
 		// set detector members
 		detector.m_imageFile = imageFile;
 		detector.m_inputPointsYmlFile = inputPointsYmlFile;
+		int firstContour = 0;
+		int lastContour = 0;
+		int area = 0;
+		int length = 0;
+		int nbOfPoints = 0;
+		int orient = 0;
 
 		////////////////////////////////////////////////////// Process /////////////////////////////////////////////////////
 
 		// read input image
 		detector.m_image = imread(imageFile, cv::IMREAD_GRAYSCALE);
+
+#if TEST_PRE_FILTER
 		cv::Mat framePatternSmooth;
 		cv::bilateralFilter(detector.m_image, framePatternSmooth, 5, 50, 50);
 		detector.m_image = framePatternSmooth;
+		detector.m_alpha = 0.0;
+#endif
 
 		if (detector.m_image.empty()) {
 			std::cout << "Cannot read input image..." << std::endl;
@@ -158,7 +195,7 @@ int main(int argc, char *argv[])
 		}
 
 		// create windows image
-		cv::namedWindow(detector.m_IMAGE_WINDOW_NAME, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
+		cv::namedWindow(detector.m_IMAGE_WINDOW_NAME, cv::WINDOW_AUTOSIZE);
 
 		// show input image
 		cv::imshow(detector.m_IMAGE_WINDOW_NAME, detector.m_image);
@@ -175,18 +212,20 @@ int main(int argc, char *argv[])
 		detector.setROIs(inputPoints);
 
 		// test some regions mannually
-		//std::map< std::string, cv::Rect> rois;
-		//rois["1"] = { cv::Rect(158, 40, 43, 40) };
-		//rois["2"] = { cv::Rect(158, 120, 43, 40) };
-		//detector.setROIs(rois);
+#if ROI_TEST
+		std::map< std::string, cv::Rect> rois;
+		rois["1"] = { cv::Rect(158, 40, 43, 40) };
+		rois["2"] = { cv::Rect(158, 120, 43, 40) };
+		detector.setROIs(rois);
+#endif
 
 		// create a Trackbar for user to enter threshold
 		if (mode == 0) {
 
 			// display trackbar for edges detection
 			if (detector.m_display) {
-				cv::namedWindow(detector.m_EDGES_WINDOW_NAME, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
-				cv::createTrackbar("Min Threshold:", detector.m_EDGES_WINDOW_NAME, &low, high, extractEdges);
+				cv::namedWindow(detector.m_EDGES_WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+				cv::createTrackbar("Min:", detector.m_EDGES_WINDOW_NAME, &low, high, extractEdges);
 			}
 
 			// launch edges detection
@@ -196,9 +235,9 @@ int main(int argc, char *argv[])
 		{
 			// display trackbar for contours detection
 			if (detector.m_display) {
-				cv::namedWindow(detector.m_EDGES_WINDOW_NAME, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
-				cv::namedWindow(detector.m_CONTOURS_WINDOW_NAME, cv::WINDOW_AUTOSIZE | cv::WINDOW_GUI_EXPANDED);
-				cv::createTrackbar("Min Threshold:", detector.m_EDGES_WINDOW_NAME, &low, high, extractContours);
+				cv::namedWindow(detector.m_EDGES_WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+				cv::namedWindow(detector.m_CONTOURS_WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+				cv::createTrackbar("Min:", detector.m_EDGES_WINDOW_NAME, &low, high, extractContours);
 			}
 
 			// launch contours detection
@@ -206,14 +245,45 @@ int main(int argc, char *argv[])
 
 			// display trackbar for contours selection
 			if (detector.m_display) {
-				int firstContour = 0;
-				int lastContour = std::max(firstContour, (int)detector.m_nbOfContours - 1);
-				int area = 10;
-				cv::createTrackbar("Contour Selector:", detector.m_CONTOURS_WINDOW_NAME, &firstContour, lastContour, contourSelector);
-				cv::createTrackbar("Contours Area Selector:", detector.m_CONTOURS_WINDOW_NAME, &area, 1000, contourAreaSelector);
+				lastContour = std::max(firstContour, (int)detector.m_nbOfContours - 1);
+				cv::createTrackbar("Contour:", detector.m_CONTOURS_WINDOW_NAME, &firstContour, lastContour, contourSelector);
+				cv::createTrackbar("Area:", detector.m_CONTOURS_WINDOW_NAME, &area, 1000, contourAreaSelector);
+				cv::createTrackbar("Length:", detector.m_CONTOURS_WINDOW_NAME, &length, 1000, contourLengthSelector);
+				cv::createTrackbar("Points:", detector.m_CONTOURS_WINDOW_NAME, &nbOfPoints, 1000, contourNbOfPtsSelector);
+				cv::createTrackbar("Orient:", detector.m_CONTOURS_WINDOW_NAME, &orient, 1000, contourOrientationPtsSelector);
+
+				if (filterContours) {
+					cv::namedWindow(detector.m_FILTERED_CONTOURS_WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+
+					int thresholdType[sp::SubPix::Threshold::NB_OF_THRESHOLDS];
+					thresholdType[sp::SubPix::Threshold::AREA] = sp::SubPix::Threshold::AREA;
+					cv::createTrackbar("Area:", detector.m_FILTERED_CONTOURS_WINDOW_NAME, &area, 1000, filterContoursSelector, (void*)&thresholdType[sp::SubPix::Threshold::AREA]);
+					thresholdType[sp::SubPix::Threshold::LENGTH] = sp::SubPix::Threshold::LENGTH;
+					cv::createTrackbar("Length:", detector.m_FILTERED_CONTOURS_WINDOW_NAME, &length, 1000, filterContoursSelector, (void*)&thresholdType[sp::SubPix::Threshold::LENGTH]);
+					thresholdType[sp::SubPix::Threshold::NB_OF_PTS] = sp::SubPix::Threshold::NB_OF_PTS;
+					cv::createTrackbar("Points:", detector.m_FILTERED_CONTOURS_WINDOW_NAME, &nbOfPoints, 1000, filterContoursSelector, (void*)&thresholdType[sp::SubPix::Threshold::NB_OF_PTS]);
+					thresholdType[sp::SubPix::Threshold::ORIENTATION] = sp::SubPix::Threshold::ORIENTATION;
+					cv::createTrackbar("Orient:", detector.m_FILTERED_CONTOURS_WINDOW_NAME, &orient, 1000, filterContoursSelector, (void*)&thresholdType[sp::SubPix::Threshold::ORIENTATION]);
+					thresholdType[sp::SubPix::Threshold::NONE] = sp::SubPix::Threshold::NONE;
+					filterContoursSelector(0, (void*)&thresholdType[sp::SubPix::Threshold::NONE]);
+				}
 			}
 		}
+		
 		cv::waitKey(0);
+
+		// update pts from filter output
+		if (filterContours) {
+			detector.updateContoursListFromROIs();
+		}
+		detector.m_selectContourStepByStep = selectContourStepByStep;
+
+		while (detector.m_selectContourStepByStep)
+		{
+			std::cout << firstContour << std::endl;
+			contourSelector(firstContour, 0);
+			cv::waitKey(0);
+		}
 
 		// destroy detector windows
 		detector.destroyWindows();

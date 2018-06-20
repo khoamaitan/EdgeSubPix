@@ -1,5 +1,6 @@
 #include <cmath>
 #include <opencv2/opencv.hpp>
+#include <algorithm>
 
 #include "EdgesSubPix.h"
 
@@ -428,6 +429,78 @@ void extractSubPixPoints(cv::Mat &dx, cv::Mat &dy, std::vector< sp::EdgesSubPix:
 	}
 }
 
+bool checkContourClosure(sp::EdgesSubPix::Contour& contour, bool displayReason=false)
+{
+	if (contour.points.size() < 3) {
+		if (displayReason) std::cout << "contour < 3 pts" << std::endl;
+		return false;
+	}
+
+	// compute occurences
+	std::vector<cv::Point2f>::iterator maxX = std::max_element(contour.points.begin(), contour.points.end(), [&](const cv::Point2f& type, const cv::Point2f& next_type) { return type.x < next_type.x; });
+	std::vector<cv::Point2f>::iterator maxY = std::max_element(contour.points.begin(), contour.points.end(), [&](const cv::Point2f& type, const cv::Point2f& next_type) { return type.y < next_type.y; });
+	int w = maxX->x+1;
+	int h = maxY->y+1;
+	cv::Mat occurences(h, w, CV_8UC1, cv::Scalar(0));
+	for (auto vec : contour.points) {
+
+		int x = vec.x;
+		int y = vec.y;
+		occurences.at<uchar>(y, x)++;
+	}
+	/*if (!occurences.empty() & !occurences.empty()) {
+		std::vector<int> compression;
+		compression.push_back(CV_IMWRITE_PXM_BINARY);
+		compression.push_back(0);
+		cv::imwrite("occurences.pgm", occurences, compression);
+	}*/
+
+	std::vector<cv::Point> curve;
+	cv::findNonZero(occurences, curve);
+	
+	// detect curve
+	auto iter = std::find_if_not(curve.begin(), curve.end(), [occurences](cv::Point& pt) { return (occurences.at<uchar>(pt.y, pt.x) >= 2); });
+	if (iter == curve.end())
+	{
+		return false;
+	}
+
+	//// colinearity check
+	//bool colinear = true;
+	//cv::Point2f vecOrig = contour.points[0];
+	//std::vector<cv::Point2f> vecsOrigRef(contour.points.size() - 2, vecOrig);
+	//cv::Point2f vecRef = contour.points[1] - contour.points[0];
+	//std::vector<cv::Point2f> vecs;
+	//std::transform(contour.points.begin() + 2, contour.points.end(), vecsOrigRef.begin(), std::back_inserter(vecs), std::minus<cv::Point2f>());
+
+	//cv::Mat sys(2, 2, CV_64FC1);
+	//for (auto vec : vecs) {
+	//	sys.at<double>(0, 0) = vecRef.x; sys.at<double>(0, 1) = vec.x;
+	//	sys.at<double>(1, 0) = vecRef.y; sys.at<double>(1, 1) = vec.y;
+	//	double det = std::abs(cv::determinant(sys));
+	//	if (det > 1e-3) {
+	//		if (displayReason) std::cout << "determinant = " << det << std::endl;
+	//		colinear = false;
+	//		break;
+	//	}
+	//}
+	//if (colinear) {
+	//	if (displayReason) std::cout << "colinear" << std::endl;
+	//	return false;
+	//}
+
+	//// closure check (points are ordered along the contour)
+	//cv::Point2f closure = contour.points[contour.points.size() - 1] - contour.points[0];
+	//double dist = cv::norm(closure);
+	//if (displayReason) std::cout << "dist = " << dist << std::endl;
+	//if (dist > 1)
+	//{
+	//	if (displayReason) std::cout << "closure > 1" << std::endl;
+	//	return false;
+	//}
+	return true;
+}
+
 void extractSubPixPoints(cv::Mat &dx, cv::Mat &dy, std::vector<sp::EdgesSubPix::Contour> &contoursInPixel, std::vector<sp::EdgesSubPix::Contour> &contours)
 {
     int w = dx.cols;
@@ -442,7 +515,7 @@ void extractSubPixPoints(cv::Mat &dx, cv::Mat &dy, std::vector<sp::EdgesSubPix::
         contour.direction.resize(icontour.size());
         contour.nx.resize(icontour.size());
         contour.ny.resize(icontour.size());
-		contour.area = cv::contourArea(icontour);
+		contour.hierarchy = contoursInPixel[i].hierarchy;
 
 #if defined(_OPENMP) && defined(NDEBUG)
 #pragma omp parallel for
@@ -480,10 +553,15 @@ void extractSubPixPoints(cv::Mat &dx, cv::Mat &dy, std::vector<sp::EdgesSubPix::
             contour.nx[j] = (float)nx;
             contour.ny[j] = (float)ny;
         }
+
+		std::vector<cv::Point2f> convexHullContour;
+		cv::convexHull(icontour, convexHullContour);
+		contour.length = cv::arcLength(convexHullContour, true);
+		contour.area = cv::contourArea(convexHullContour);
     }
 }
 
-void extractPixPoints(std::vector<std::vector<cv::Point> > &contoursInPixel, std::vector<sp::EdgesSubPix::Contour> &contours)
+void extractPixPoints(std::vector<std::vector<cv::Point> > &contoursInPixel, std::vector<cv::Vec4i>& hierarchy, std::vector<sp::EdgesSubPix::Contour> &contours)
 {
 	contours.resize(contoursInPixel.size());
 	for (size_t i = 0; i < contoursInPixel.size(); ++i)
@@ -495,8 +573,10 @@ void extractPixPoints(std::vector<std::vector<cv::Point> > &contoursInPixel, std
 		contour.direction.resize(icontour.size());
         contour.nx.resize(icontour.size());
         contour.ny.resize(icontour.size());
-		contour.area = cv::contourArea(icontour);
-
+		if (!hierarchy.empty()) {
+			contour.hierarchy = hierarchy[i];
+		}
+		
 #if defined(_OPENMP) && defined(NDEBUG)
 #pragma omp parallel for
 #endif
@@ -512,6 +592,11 @@ void extractPixPoints(std::vector<std::vector<cv::Point> > &contoursInPixel, std
             contour.nx[j] = sp::EdgesSubPix::UNDEFINED_DIRECTION;
             contour.ny[j] = sp::EdgesSubPix::UNDEFINED_DIRECTION;
 		}
+
+		std::vector<cv::Point> convexHullContour;
+		cv::convexHull(icontour, convexHullContour);
+		contour.length = cv::arcLength(convexHullContour, true);
+		contour.area = cv::contourArea(convexHullContour);
 	}
 }
 
@@ -622,17 +707,18 @@ void edgesPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Ma
 	extractPixPoints(edges, edgesInPixel);
 }
 
-void contoursPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector < sp::EdgesSubPix::Edge > & edgesInPixel, std::vector<sp::EdgesSubPix::Contour>& contoursPix, cv::OutputArray hierarchy, int mode, cv::Mat& dx, cv::Mat& dy, cv::Mat& edges)
+void contoursPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector < sp::EdgesSubPix::Edge > & edgesInPixel, std::vector<sp::EdgesSubPix::Contour>& contoursPix, int mode, cv::Mat& dx, cv::Mat& dy, cv::Mat& edges)
 {
 	// extract edges
 	edgesPix(gray, alpha, low, high, mask, edgesInPixel, edges, dx, dy);
 
 	// extract contours
 	std::vector<std::vector<cv::Point> > contoursInPixel;
+	std::vector<cv::Vec4i> hierarchy;
 	cv::findContours(edges, contoursInPixel, hierarchy, mode, cv::CHAIN_APPROX_NONE);
 
 	// format contours
-	extractPixPoints(contoursInPixel, contoursPix);
+	extractPixPoints(contoursInPixel, hierarchy, contoursPix);
 }
 
 //---------------------------------------------------------------------
@@ -654,13 +740,12 @@ void sp::EdgesSubPix::edgesSubPix(const cv::Mat &gray, double alpha, int low, in
 	roi2Image(gray, edgesInSubPixel);
 }
 
-void sp::EdgesSubPix::edgesSubPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector<sp::EdgesSubPix::Edge>& edgesInPixel, std::vector<sp::EdgesSubPix::Contour>& contoursInPixel,
-	std::vector<sp::EdgesSubPix::Contour> &contoursInSubPixel, cv::OutputArray hierarchy, int mode, cv::Mat& edges)
+void sp::EdgesSubPix::contoursSubPix(const cv::Mat &gray, double alpha, int low, int high, const cv::Mat& mask, std::vector<sp::EdgesSubPix::Edge>& edgesInPixel, std::vector<sp::EdgesSubPix::Contour>& contoursInPixel, std::vector<sp::EdgesSubPix::Contour> &contoursInSubPixel, int mode, cv::Mat& edges)
 {
 	// extract contours
 	cv::Mat dx;
 	cv::Mat dy;
-	contoursPix(gray, alpha, low, high, mask, edgesInPixel, contoursInPixel, hierarchy, mode, dx, dy, edges);
+	contoursPix(gray, alpha, low, high, mask, edgesInPixel, contoursInPixel, mode, dx, dy, edges);
 
 	// subpixel position extraction with steger's method and facet model 2nd polynominal in 3x3 neighbourhood
 	extractSubPixPoints(dx, dy, contoursInPixel, contoursInSubPixel);
