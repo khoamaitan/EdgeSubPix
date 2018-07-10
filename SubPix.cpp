@@ -634,8 +634,8 @@ void sp::SubPix::filterContours(std::vector<sp::EdgesSubPix::Contour>& contours,
 			cv::Vec4i hierarchy;
 			std::vector<float> nx;
 			std::vector<float> ny;
-			double length;
-			double area;
+			double length=0.0;
+			double area=0.0;
 
 			// orientation filter data
 			bool ptOrientationFlag=true;
@@ -683,13 +683,11 @@ void sp::SubPix::filterContours(std::vector<sp::EdgesSubPix::Contour>& contours,
 				}
 			}
 
-			if (!pts.empty()) {
-				hierarchy = contour.hierarchy;
-				length = contour.length;
-				area = contour.area;
-				sp::EdgesSubPix::Contour filteredContour(pts, direction, response, hierarchy, nx, ny, length, area);
-				validContours.push_back(filteredContour);
-			}
+			hierarchy = contour.hierarchy;
+			length = contour.length;
+			area = contour.area;
+			sp::EdgesSubPix::Contour filteredContour(pts, direction, response, hierarchy, nx, ny, length, area);
+			validContours.push_back(filteredContour);
 		}
 
 		cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
@@ -1424,7 +1422,7 @@ void sp::SubPix::setImageROIs(const std::map< std::string, cv::Rect >& rois, con
 
 void sp::SubPix::destroyWindows()
 {
-    cv::destroyWindow(m_EDGES_WINDOW_NAME);
+   /* cv::destroyWindow(m_EDGES_WINDOW_NAME);
 	cv::destroyWindow(m_EDGES_FROM_CONTOURS);
     cv::destroyWindow(m_PIXEL_STATE_AFTER_CONTOURS_DETECTION_WINDOW_NAME);
     cv::destroyWindow(m_CONTOURS_WINDOW_NAME);
@@ -1432,7 +1430,8 @@ void sp::SubPix::destroyWindows()
     cv::destroyWindow(m_PIXEL_STATE_AFTER_EDGES_DETECTION_WINDOW_NAME);
     cv::destroyWindow(m_MOVING_EDGES_WINDOW_NAME);
     cv::destroyWindow(m_AMBIGUITY_ON_EDGES_IMAGE_LIST_WINDOW_NAME);
-	cv::destroyWindow(m_AMBIGUITY_ON_CONTOURS_IMAGE_LIST_WINDOW_NAME);
+	cv::destroyWindow(m_AMBIGUITY_ON_CONTOURS_IMAGE_LIST_WINDOW_NAME);*/
+	cv::destroyAllWindows();
 }
 
 void sp::SubPix::saveEdgesPixelMap(const std::string& filename, int imageHeight, std::map< int, std::vector<sp::EdgesSubPix::Edge > >& pixelEdgesMap)
@@ -1584,6 +1583,10 @@ cv::Mat sp::SubPix::displayMovingContourEdges(const std::vector<sp::EdgesSubPix:
 	{
 		for (int j = 0; j < (int)contoursInPixel[i].points.size(); j++)
 		{
+			if (contoursInPixel[i].points.size() != contoursInSubPixel[i].points.size()) {
+				break;
+			}
+
 			cv::Point2f pt = contoursInSubPixel[i].points[j];
 			int x = int(pt.x);
 			int y = int(pt.y);
