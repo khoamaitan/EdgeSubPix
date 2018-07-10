@@ -43,7 +43,7 @@ namespace sp
 		bool areaFilter(const sp::EdgesSubPix::Contour& contour, double threshold);
 		bool orientationPtFilter(const cv::Point2f& pt, cv::Point2f lineDir, double orientationTolerance, double angle_ref);
 		cv::Vec4f contourOrientationLine(const std::vector< cv::Point2f >& pts);
-		void filterContours(std::vector<sp::EdgesSubPix::Contour>& contours);
+		void filterContours(std::vector<sp::EdgesSubPix::Contour>& contours, const std::string& windowName = "Contours orientations");
 
 		void updateEdgesListFromROIs();
 		void updateContoursListFromROIs();
@@ -96,6 +96,7 @@ namespace sp
 		std::string m_MOVING_EDGES_WINDOW_NAME = "Moving edges";
 		std::string m_AMBIGUITY_ON_EDGES_IMAGE_LIST_WINDOW_NAME = "Ambiguity on edges in image list";
 		std::string m_AMBIGUITY_ON_CONTOURS_IMAGE_LIST_WINDOW_NAME = "Ambiguity on contours in image list";
+		std::string m_CONTOURS_ORIENTATIONS = "Contours orientations";
 
 		cv::Mat m_image;
 		cv::Mat m_edges;

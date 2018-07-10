@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
 		"{@outputFolderPath   |results        | folder path for results                }"
 		"{computeImageAmbiguity          |true           | compute image ambiguities (all image must be of the same size   }"
 		"{selectContourStepByStep          |true           | select the contour step by step mode  }"
-		"{filterContours          |false           | activate contours filtering }"
+		"{filterContours          |true           | activate contours filtering }"
 		"{@edgesAmbiguityImage |edgesAmbiguityImage.ppm | image for edges ambiguities between images of a same sequence }"
 		"{@contoursAmbiguityImage |contoursAmbiguityImage.ppm | image for contours ambiguities between images of a same sequence }";
 
@@ -287,7 +287,6 @@ int main(int argc, char *argv[])
 
 		// destroy detector windows
 		detector.destroyWindows();
-		cv::destroyWindow(detector.m_IMAGE_WINDOW_NAME);
 
 		////////////////////////////////////////////////////// Results /////////////////////////////////////////////////////
 
