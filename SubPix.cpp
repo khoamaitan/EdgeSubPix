@@ -1422,15 +1422,6 @@ void sp::SubPix::setImageROIs(const std::map< std::string, cv::Rect >& rois, con
 
 void sp::SubPix::destroyWindows()
 {
-   /* cv::destroyWindow(m_EDGES_WINDOW_NAME);
-	cv::destroyWindow(m_EDGES_FROM_CONTOURS);
-    cv::destroyWindow(m_PIXEL_STATE_AFTER_CONTOURS_DETECTION_WINDOW_NAME);
-    cv::destroyWindow(m_CONTOURS_WINDOW_NAME);
-	cv::destroyWindow(m_FILTERED_CONTOURS_WINDOW_NAME);
-    cv::destroyWindow(m_PIXEL_STATE_AFTER_EDGES_DETECTION_WINDOW_NAME);
-    cv::destroyWindow(m_MOVING_EDGES_WINDOW_NAME);
-    cv::destroyWindow(m_AMBIGUITY_ON_EDGES_IMAGE_LIST_WINDOW_NAME);
-	cv::destroyWindow(m_AMBIGUITY_ON_CONTOURS_IMAGE_LIST_WINDOW_NAME);*/
 	cv::destroyAllWindows();
 }
 
@@ -1609,7 +1600,6 @@ cv::Mat sp::SubPix::displayMovingContourEdges(const std::vector<sp::EdgesSubPix:
 					_frame(y, x)[1] = 255;
 					_frame(y, x)[2] = 0;
 				}
-
 			}
 			else
 			{

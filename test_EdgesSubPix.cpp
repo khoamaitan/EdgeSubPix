@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 		"{alpha          |1.0           | gaussian alpha                }"
 		"{@outputFolderPath   |results        | folder path for results                }"
 		"{computeImageAmbiguity          |true           | compute image ambiguities (all image must be of the same size   }"
-		"{selectContourStepByStep          |true           | select the contour step by step mode  }"
+		"{selectContourStepByStep          |false           | select the contour step by step mode  }"
 		"{filterContours          |true           | activate contours filtering }"
 		"{@edgesAmbiguityImage |edgesAmbiguityImage.ppm | image for edges ambiguities between images of a same sequence }"
 		"{@contoursAmbiguityImage |contoursAmbiguityImage.ppm | image for contours ambiguities between images of a same sequence }";
