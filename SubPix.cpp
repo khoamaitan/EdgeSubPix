@@ -690,7 +690,8 @@ void sp::SubPix::filterContours(std::vector<sp::EdgesSubPix::Contour>& contours,
 			validContours.push_back(filteredContour);
 		}
 
-		cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+		cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+		cv::resizeWindow(windowName, output.cols, output.rows);
 		cv::imshow(windowName, output);
 	}
 
@@ -963,8 +964,9 @@ cv::Mat sp::SubPix::displayPixelState(const std::map<int, std::map<int, bool> >&
 	cv::putText(frame, str_multiSubpixelSingleContour, cv::Point(space, 3 * space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 255, 0), 1);
 	cv::putText(frame, str_multiSubpixelMultiContour, cv::Point(space, 4 * space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255), 1);
 
-    cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
-    cv::imshow(windowName, frame);
+	cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+	cv::resizeWindow(windowName, frame.cols, frame.rows);
+	cv::imshow(windowName, frame);
     std::cout << "Displaying pixels state; press any key (in " << windowName << ") to continue.\n";
 
     return frame;
@@ -1074,7 +1076,8 @@ void sp::SubPix::show(cv::Mat& image, const std::string& windowName)
 {
 	if (!image.empty()) {
 
-		cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+		cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+		cv::resizeWindow(windowName, image.cols, image.rows);
 		cv::imshow(windowName, image);
 	}
 }
@@ -1152,8 +1155,9 @@ void sp::SubPix::showContours(const std::vector<sp::EdgesSubPix::Contour>& conto
         }
 
         // show contours
-        cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
-        cv::imshow(windowName, contoursImage);
+		cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+		cv::resizeWindow(windowName, contoursImage.cols, contoursImage.rows);
+		cv::imshow(windowName, contoursImage);
     }
 }
 
@@ -1165,7 +1169,8 @@ void sp::SubPix::showContour(const int& contourId, const std::vector<sp::EdgesSu
 		drawContour(contourId, contoursPts, contoursImage, color, false, cv::MARKER_CROSS, false, 10, 10, contourThickness);
 
 		// show contours
-		cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+		cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+		cv::resizeWindow(windowName, contoursImage.cols, contoursImage.rows);
 		cv::imshow(windowName, contoursImage);
 
 		if (m_display) {
@@ -1188,7 +1193,8 @@ void sp::SubPix::showContour(const int& contourId, const std::vector<sp::EdgesSu
 		}
 
 		// show contours step by step
-		cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+		cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+		cv::resizeWindow(windowName, contoursImage.cols, contoursImage.rows);
 		cv::imshow(windowName, contoursImage);
 
 		// clean contours view
@@ -1209,7 +1215,8 @@ void sp::SubPix::showContour(const int& contourId, const std::vector<sp::EdgesSu
 		drawContour(contourId, contoursPts, contoursImage, color, marker, markerType, normals, markersDisplayRatio, normalsDisplayRatio, contourThickness);
 
 		// show contours
-		cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+		cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+		cv::resizeWindow(windowName, contoursImage.cols, contoursImage.rows);
 		cv::imshow(windowName, contoursImage);
 	}
 }
@@ -1552,8 +1559,9 @@ cv::Mat sp::SubPix::displayMovingEdges(const std::vector<sp::EdgesSubPix::Edge>&
 	cv::putText(movingEdges, atPixelFrontier, cv::Point(space, 3*space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 255, 0), 1);
 	cv::putText(movingEdges, outOfPixel, cv::Point(space, 4*space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 0, 0), 1);
 
-    cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
-    cv::imshow(windowName, movingEdges);
+	cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+	cv::resizeWindow(windowName, movingEdges.cols, movingEdges.rows);
+	cv::imshow(windowName, movingEdges);
     std::cout << "Displaying moving edges; press any key (in " << windowName << ") to continue.\n";
 
     return movingEdges;
