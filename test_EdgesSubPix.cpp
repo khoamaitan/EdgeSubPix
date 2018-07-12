@@ -89,8 +89,8 @@ int main(int argc, char *argv[])
 		"{alpha          |1.0           | gaussian alpha                }"
 		"{@outputFolderPath   |results        | folder path for results                }"
 		"{computeImageAmbiguity          |true           | compute image ambiguities (all image must be of the same size   }"
-		"{selectContourStepByStep          |true           | select the contour step by step mode  }"
-		"{filterContours          |false           | activate contours filtering }"
+		"{selectContourStepByStep          |false           | select the contour step by step mode  }"
+		"{filterContours          |true           | activate contours filtering }"
 		"{@edgesAmbiguityImage |edgesAmbiguityImage.ppm | image for edges ambiguities between images of a same sequence }"
 		"{@contoursAmbiguityImage |contoursAmbiguityImage.ppm | image for contours ambiguities between images of a same sequence }";
 
@@ -195,7 +195,8 @@ int main(int argc, char *argv[])
 		}
 
 		// create windows image
-		cv::namedWindow(detector.m_IMAGE_WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+		cv::namedWindow(detector.m_IMAGE_WINDOW_NAME, cv::WINDOW_GUI_EXPANDED);
+		cv::resizeWindow(detector.m_IMAGE_WINDOW_NAME, detector.m_image.cols, detector.m_image.rows);
 
 		// show input image
 		cv::imshow(detector.m_IMAGE_WINDOW_NAME, detector.m_image);
@@ -224,7 +225,8 @@ int main(int argc, char *argv[])
 
 			// display trackbar for edges detection
 			if (detector.m_display) {
-				cv::namedWindow(detector.m_EDGES_WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+				cv::namedWindow(detector.m_EDGES_WINDOW_NAME, cv::WINDOW_GUI_EXPANDED);
+				cv::resizeWindow(detector.m_EDGES_WINDOW_NAME, detector.m_image.cols, detector.m_image.rows);
 				cv::createTrackbar("Min:", detector.m_EDGES_WINDOW_NAME, &low, high, extractEdges);
 			}
 
@@ -235,8 +237,10 @@ int main(int argc, char *argv[])
 		{
 			// display trackbar for contours detection
 			if (detector.m_display) {
-				cv::namedWindow(detector.m_EDGES_WINDOW_NAME, cv::WINDOW_AUTOSIZE);
-				cv::namedWindow(detector.m_CONTOURS_WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+				cv::namedWindow(detector.m_EDGES_WINDOW_NAME, cv::WINDOW_GUI_EXPANDED);
+				cv::namedWindow(detector.m_CONTOURS_WINDOW_NAME, cv::WINDOW_GUI_EXPANDED);
+				cv::resizeWindow(detector.m_EDGES_WINDOW_NAME, detector.m_image.cols, detector.m_image.rows);
+				cv::resizeWindow(detector.m_CONTOURS_WINDOW_NAME, detector.m_image.cols, detector.m_image.rows);
 				cv::createTrackbar("Min:", detector.m_EDGES_WINDOW_NAME, &low, high, extractContours);
 			}
 
@@ -253,7 +257,8 @@ int main(int argc, char *argv[])
 				cv::createTrackbar("Orient:", detector.m_CONTOURS_WINDOW_NAME, &orient, 1000, contourOrientationPtsSelector);
 
 				if (filterContours) {
-					cv::namedWindow(detector.m_FILTERED_CONTOURS_WINDOW_NAME, cv::WINDOW_AUTOSIZE);
+					cv::namedWindow(detector.m_FILTERED_CONTOURS_WINDOW_NAME, cv::WINDOW_GUI_EXPANDED);
+					cv::resizeWindow(detector.m_FILTERED_CONTOURS_WINDOW_NAME, detector.m_image.cols, detector.m_image.rows);
 
 					int thresholdType[sp::SubPix::Threshold::NB_OF_THRESHOLDS];
 					thresholdType[sp::SubPix::Threshold::AREA] = sp::SubPix::Threshold::AREA;
@@ -287,7 +292,6 @@ int main(int argc, char *argv[])
 
 		// destroy detector windows
 		detector.destroyWindows();
-		cv::destroyWindow(detector.m_IMAGE_WINDOW_NAME);
 
 		////////////////////////////////////////////////////// Results /////////////////////////////////////////////////////
 
