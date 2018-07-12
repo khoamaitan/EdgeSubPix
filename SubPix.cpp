@@ -1633,7 +1633,8 @@ cv::Mat sp::SubPix::displayMovingContourEdges(const std::vector<sp::EdgesSubPix:
 	cv::putText(movingEdges, atPixelFrontier, cv::Point(space, 3 * space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 255, 0), 1);
 	cv::putText(movingEdges, outOfPixel, cv::Point(space, 4 * space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 0, 0), 1);
 
-    cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+    cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+	cv::resizeWindow(windowName, movingEdges.cols, movingEdges.rows);
 	cv::imshow(windowName, movingEdges);
 	std::cout << "Displaying moving edges; press any key (in " << windowName << ") to continue.\n";
 
@@ -1692,7 +1693,8 @@ cv::Mat sp::SubPix::displayImageSequenceEdgesAmbiguities(int imageWidth, int ima
 	cv::putText(ambiguityImage, ambiguity, cv::Point(space, space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255), 1);
 	cv::putText(ambiguityImage, noAmbiguity, cv::Point(space, 2 * space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 255, 255), 1);
 
-	cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+	cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+	cv::resizeWindow(windowName, ambiguityImage.cols, ambiguityImage.rows);
 	cv::imshow(windowName, ambiguityImage);
 	std::cout << "Displaying ambiguity images; press any key (in " << windowName << ") to continue.\n";
 
@@ -1756,7 +1758,8 @@ cv::Mat sp::SubPix::displayImageSequenceContoursAmbiguities(int imageWidth, int 
 	cv::putText(ambiguityImage, ambiguity, cv::Point(space, space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0, 0, 255), 1);
 	cv::putText(ambiguityImage, noAmbiguity, cv::Point(space, 2 * space), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 255, 255), 1);
 
-	cv::namedWindow(windowName, cv::WINDOW_AUTOSIZE);
+	cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+	cv::resizeWindow(windowName, ambiguityImage.cols, ambiguityImage.rows);
 	cv::imshow(windowName, ambiguityImage);
 	std::cout << "Displaying ambiguity images; press any key (in " << windowName << ") to continue.\n";
 
