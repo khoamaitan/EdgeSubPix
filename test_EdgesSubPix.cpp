@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 		int area = 0;
 		int length = 0;
 		int nbOfPoints = 0;
-		int orient = 15;
+		int orient = 0;
 
 		////////////////////////////////////////////////////// Process /////////////////////////////////////////////////////
 

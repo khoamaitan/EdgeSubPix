@@ -18,6 +18,7 @@ namespace sp
 		struct Contour
 		{
 			std::vector<cv::Point2f> points;  // edges locations
+			std::vector<cv::Point> pointsInPix;  // edges locations in pixels
 			std::vector<float> direction;     // direction of the gradients in contour edges points, 
 											  // starting from y axis, counter-clockwise,
 			std::vector<float> response;      // amplitude of the gradient in edges point,
@@ -29,6 +30,7 @@ namespace sp
 		struct Edge
 		{
 			cv::Point2f point;				  // edge location
+			cv::Point pointInPix;			  // edge location in pixel
 			float direction;				  // direction of the gradients in edge point, 
 											  // starting from y axis, counter-clockwise,
 			float response;					  // amplitude of the gradient in edge point,
