@@ -422,6 +422,7 @@ void extractSubPixPoints(cv::Mat &dx, cv::Mat &dy, std::vector< sp::EdgesSubPix:
             y += (float)(py+0.5);
 		}
 		edge.point = cv::Point2f(x, y);
+		edge.pointInPix = cv::Point(iedge.point.x, iedge.point.y);
 		edge.response = (float)(a[0] / scale);
 		edge.direction = (float)vector2angle(ny, nx);
         edge.nx = (float)nx;
@@ -511,6 +512,7 @@ void extractSubPixPoints(cv::Mat &dx, cv::Mat &dy, std::vector<sp::EdgesSubPix::
 		std::vector<cv::Point2f> &icontour = contoursInPixel[i].points;
 		sp::EdgesSubPix::Contour &contour = contours[i];
         contour.points.resize(icontour.size());
+		contour.pointsInPix.resize(icontour.size());
         contour.response.resize(icontour.size());
         contour.direction.resize(icontour.size());
         contour.nx.resize(icontour.size());
@@ -548,6 +550,7 @@ void extractSubPixPoints(cv::Mat &dx, cv::Mat &dy, std::vector<sp::EdgesSubPix::
                 y += (float)(py+0.5);
             }
             contour.points[j] = cv::Point2f(x, y);
+			contour.pointsInPix[j] = cv::Point(icontour[j].x, icontour[j].y);
             contour.response[j] = (float)(a[0] / scale);
             contour.direction[j] = (float)vector2angle(ny, nx);
             contour.nx[j] = (float)nx;
@@ -569,6 +572,7 @@ void extractPixPoints(std::vector<std::vector<cv::Point> > &contoursInPixel, std
 		std::vector<cv::Point> &icontour = contoursInPixel[i];
 		sp::EdgesSubPix::Contour &contour = contours[i];
 		contour.points.resize(icontour.size());
+		contour.pointsInPix.resize(icontour.size());
 		contour.response.resize(icontour.size());
 		contour.direction.resize(icontour.size());
         contour.nx.resize(icontour.size());
@@ -587,6 +591,7 @@ void extractPixPoints(std::vector<std::vector<cv::Point> > &contoursInPixel, std
 			float y = (float)icontour[j].y;
 
 			contour.points[j] = cv::Point2f(x, y);
+			contour.pointsInPix[j] = cv::Point(icontour[j].x, icontour[j].y);
 			contour.response[j] = sp::EdgesSubPix::UNDEFINED_RESPONSE;
 			contour.direction[j] = sp::EdgesSubPix::UNDEFINED_DIRECTION;
             contour.nx[j] = sp::EdgesSubPix::UNDEFINED_DIRECTION;
@@ -611,7 +616,8 @@ void extractPixPoints(const cv::Mat& edges, std::vector<sp::EdgesSubPix::Edge>& 
 			if (row[w] == 255) {
 				sp::EdgesSubPix::Edge edge;
 				edge.direction = sp::EdgesSubPix::UNDEFINED_DIRECTION;
-				edge.point = cv::Point(w, h);
+				edge.point = cv::Point2f(w, h);
+				edge.pointInPix = cv::Point(w, h);
 				edge.response = sp::EdgesSubPix::UNDEFINED_RESPONSE;
                 edge.nx = sp::EdgesSubPix::UNDEFINED_RESPONSE;
                 edge.ny = sp::EdgesSubPix::UNDEFINED_RESPONSE;
@@ -634,6 +640,8 @@ void roi2Image(const cv::Mat& gray, std::vector<sp::EdgesSubPix::Contour> &conto
 			for (size_t j = 0; j < contours[i].points.size(); ++j) {
 				contours[i].points[j].x += ofs.x;
 				contours[i].points[j].y += ofs.y;
+				contours[i].pointsInPix[j].x += ofs.x;
+				contours[i].pointsInPix[j].y += ofs.y;
 			}
 		}
 	}
@@ -651,6 +659,8 @@ void roi2Image(const cv::Mat& gray, std::vector<sp::EdgesSubPix::Edge> &edges)
 		for (size_t i = 0; i < edges.size(); ++i) {
 			edges[i].point.x += ofs.x;
 			edges[i].point.y += ofs.y;
+			edges[i].pointInPix.x += ofs.x;
+			edges[i].pointInPix.y += ofs.y;
 		}
 	}
 }

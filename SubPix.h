@@ -43,7 +43,7 @@ namespace sp
 		bool areaFilter(const sp::EdgesSubPix::Contour& contour, double threshold);
 		bool orientationPtFilter(const cv::Point2f& pt, cv::Point2f lineDir, double orientationTolerance, double angle_ref);
 		cv::Vec4f contourOrientationLine(const std::vector< cv::Point2f >& pts);
-		void filterContours(std::vector<sp::EdgesSubPix::Contour>& contours, const std::string& windowName = "Contours orientations");
+		void filterContours(std::vector<sp::EdgesSubPix::Contour>& contours, const std::string& windowName = "Contours orientations", const bool& display = false);
 
 		void updateEdgesListFromROIs();
 		void updateContoursListFromROIs();
@@ -118,6 +118,7 @@ namespace sp
 		int m_nbOfContours = 0;
 		int m_maxContours = 2000;
         bool m_display = false;
+		bool m_displayOrientation = false;
 		bool m_markers = false;
 		int m_markerType = cv::MarkerTypes::MARKER_TILTED_CROSS;
 		bool m_normals = false;
@@ -137,7 +138,6 @@ namespace sp
 		double m_area_threshold = 10;
 		double m_orientationTolerance = 30;
 		double m_angle_ref = 0;
-
 
 		const std::string INPUT_GRAYIMAGE = "Input gray image";
 		const std::string EDGES_IMAGE = "Edges image";
