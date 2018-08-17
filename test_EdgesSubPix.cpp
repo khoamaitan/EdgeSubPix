@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 		int area = 0;
 		int length = 0;
 		int nbOfPoints = 0;
-		int orient = 0;
+		int orient = 15;
 
 		////////////////////////////////////////////////////// Process /////////////////////////////////////////////////////
 
@@ -259,6 +259,8 @@ int main(int argc, char *argv[])
 				if (filterContours) {
 					cv::namedWindow(detector.m_FILTERED_CONTOURS_WINDOW_NAME, cv::WINDOW_GUI_EXPANDED);
 					cv::resizeWindow(detector.m_FILTERED_CONTOURS_WINDOW_NAME, detector.m_image.cols, detector.m_image.rows);
+					cv::namedWindow(detector.m_EDGES_FROM_CONTOURS, cv::WINDOW_GUI_EXPANDED);
+					cv::resizeWindow(detector.m_EDGES_FROM_CONTOURS, detector.m_image.cols, detector.m_image.rows);
 
 					int thresholdType[sp::SubPix::Threshold::NB_OF_THRESHOLDS];
 					thresholdType[sp::SubPix::Threshold::AREA] = sp::SubPix::Threshold::AREA;
@@ -311,8 +313,11 @@ int main(int argc, char *argv[])
 			edgesInPixelPts = detector.m_edgesInPixel;
 			pixelEdgesMap = detector.pixelEdgesMap(edgesInPixelPts, edgesPts, detector.m_image.rows);
 			detector.computePixelState(pixelEdgesMap, pixelState);
-			pixelStateImage = detector.displayPixelState(pixelState, detector.m_image.cols, detector.m_image.rows, detector.m_PIXEL_STATE_AFTER_EDGES_DETECTION_WINDOW_NAME);
-			movingEdges = detector.displayMovingEdges(edgesInPixelPts, edgesPts, detector.m_image.cols, detector.m_image.rows);
+
+			if (detector.m_display) {
+				pixelStateImage = detector.displayPixelState(pixelState, detector.m_image.cols, detector.m_image.rows, detector.m_PIXEL_STATE_AFTER_EDGES_DETECTION_WINDOW_NAME);
+				movingEdges = detector.displayMovingEdges(edgesInPixelPts, edgesPts, detector.m_image.cols, detector.m_image.rows);
+			}
 		}
 		else
 		{
@@ -329,8 +334,11 @@ int main(int argc, char *argv[])
 			}
 			pixelContourMap = detector.pixelContoursMap(contoursInPixelPts, contoursPts, detector.m_image.rows);
 			detector.computePixelState(pixelContourMap, pixelState);
-			pixelStateImage = detector.displayPixelState(pixelState, detector.m_image.cols, detector.m_image.rows, detector.m_PIXEL_STATE_AFTER_CONTOURS_DETECTION_WINDOW_NAME);
-			movingEdges = detector.displayMovingContourEdges(contoursInPixelPts, contoursPts, detector.m_image.cols, detector.m_image.rows);
+
+			if (detector.m_display) {
+				pixelStateImage = detector.displayPixelState(pixelState, detector.m_image.cols, detector.m_image.rows, detector.m_PIXEL_STATE_AFTER_CONTOURS_DETECTION_WINDOW_NAME);
+				movingEdges = detector.displayMovingContourEdges(contoursInPixelPts, contoursPts, detector.m_image.cols, detector.m_image.rows);
+			}
 		}
 		cv::waitKey(0);
 		detector.destroyWindows();
@@ -392,12 +400,16 @@ int main(int argc, char *argv[])
 
 		cv::Mat ambiguityImage;
 		if (mode == 0) {
-			ambiguityImage = detector.displayImageSequenceEdgesAmbiguities(detector.m_image.cols, detector.m_image.rows, "Ambiguity on edges in image list");
+			if (detector.m_display) {
+				ambiguityImage = detector.displayImageSequenceEdgesAmbiguities(detector.m_image.cols, detector.m_image.rows, "Ambiguity on edges in image list");
+			}
 			detector.saveImage(outputFolderPath + "/" + edgesAmbiguityImage, ambiguityImage);
 		}
 		else
 		{
-			ambiguityImage = detector.displayImageSequenceContoursAmbiguities(detector.m_image.cols, detector.m_image.rows, "Ambiguity on contours in image list");
+			if (detector.m_display) {
+				ambiguityImage = detector.displayImageSequenceContoursAmbiguities(detector.m_image.cols, detector.m_image.rows, "Ambiguity on contours in image list");
+			}
 			detector.saveImage(outputFolderPath + "/" + contoursAmbiguityImage, ambiguityImage);
 		}
 		cv::waitKey(0);

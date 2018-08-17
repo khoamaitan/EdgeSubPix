@@ -364,6 +364,7 @@ void sp::SubPix::selectOrientedContoursParts(int threshold)
 		{
 			sp::EdgesSubPix::Contour& contour = contoursCloneInliers[iter];
 			std::vector< cv::Point2f > ptsInliers, ptsOutliers;
+			std::vector< cv::Point > ptsInliersInPix, ptsOutliersInPix;
 			std::vector<float> directionInliers, directionOutliers;
 			std::vector<float> responseInliers, responseOutliers;
 			cv::Vec4i hierarchyInliers, hierarchyOutliers;
@@ -377,6 +378,7 @@ void sp::SubPix::selectOrientedContoursParts(int threshold)
 				if (orientationPtFilter(cv::Point2f(contour.nx[i], contour.ny[i]), cv::Point2f(line[0], line[1]), m_orientationTolerance, m_angle_ref))
 				{
 					ptsInliers.push_back(contour.points[i]);
+					ptsInliersInPix.push_back(contour.pointsInPix[i]);
 					directionInliers.push_back(contour.direction[i]);
 					responseInliers.push_back(contour.response[i]);
 					nxInliers.push_back(contour.nx[i]);
@@ -385,6 +387,7 @@ void sp::SubPix::selectOrientedContoursParts(int threshold)
 				else
 				{
 					ptsOutliers.push_back(contour.points[i]);
+					ptsOutliersInPix.push_back(contour.pointsInPix[i]);
 					directionOutliers.push_back(contour.direction[i]);
 					responseOutliers.push_back(contour.response[i]);
 					nxOutliers.push_back(contour.nx[i]);
@@ -395,14 +398,14 @@ void sp::SubPix::selectOrientedContoursParts(int threshold)
 			lengthInliers = contour.length;
 			areaInliers = contour.area;
 
-			sp::EdgesSubPix::Contour filteredOutlierContour(ptsOutliers, directionOutliers, responseOutliers, hierarchyOutliers, nxOutliers, nyOutliers, lengthOutliers, areaOutliers);
+			sp::EdgesSubPix::Contour filteredOutlierContour(ptsOutliers, ptsOutliersInPix, directionOutliers, responseOutliers, hierarchyOutliers, nxOutliers, nyOutliers, lengthOutliers, areaOutliers);
 			sp::EdgesSubPix::Contour& contourOutlier = contoursCloneOutliers[iter];
 			contourOutlier = filteredOutlierContour;
 
 			cv::Scalar color(rng.uniform(1, 254), rng.uniform(1, 254), rng.uniform(1, 254));
 			showContour(iter, contoursCloneOutliers, m_contours, m_CONTOURS_WINDOW_NAME, color, true, cv::MARKER_CROSS, false, 1, 1, false, 2);
 
-			sp::EdgesSubPix::Contour filteredInlierContour(ptsInliers, directionInliers, responseInliers, hierarchyInliers, nxInliers, nyInliers, lengthInliers, areaInliers);
+			sp::EdgesSubPix::Contour filteredInlierContour(ptsInliers, ptsInliersInPix, directionInliers, responseInliers, hierarchyInliers, nxInliers, nyInliers, lengthInliers, areaInliers);
 			contour = filteredInlierContour;
 		}
 
@@ -462,13 +465,17 @@ void sp::SubPix::filterContours(int threshold, void* type)
 			std::copy(roiContoursPts->second.begin(), roiContoursPts->second.end(), roiSelectedContours.begin());
 		
 			if (*threshold_type != NONE) {
-				filterContours(roiSelectedContours, m_CONTOURS_ORIENTATIONS);
+				filterContours(roiSelectedContours, m_CONTOURS_ORIENTATIONS, m_display && m_displayOrientation);
 			}
 			cv::Scalar color(rng.uniform(1, 254), rng.uniform(1, 254), rng.uniform(1, 254));
-			showContours(roiSelectedContours, m_contours, m_FILTERED_CONTOURS_WINDOW_NAME, true, cv::MARKER_CROSS, false, 1, 1, 1);
 
-			// show equivalent edges
-			showEdgesFromContours(roiSelectedContours, m_contours, m_edgesFromContours, m_EDGES_FROM_CONTOURS);
+			if (m_display) {
+
+				showContours(roiSelectedContours, m_contours, m_FILTERED_CONTOURS_WINDOW_NAME, true, cv::MARKER_CROSS, false, 1, 1, 1);
+
+				// show equivalent edges
+				showEdgesFromContours(roiSelectedContours, m_contours, m_edgesFromContours, m_EDGES_FROM_CONTOURS);
+			}
 
 			// set selected roi contours
 			m_roisContoursPtsFiltered[roiContoursPts->first] = roiSelectedContours;
@@ -488,10 +495,10 @@ void sp::SubPix::setEdgesFromContours(const std::vector< sp::EdgesSubPix::Contou
 		for (int i = 0; i < (int)contoursPts.size(); i++)
 		{
 			sp::EdgesSubPix::Contour contour = contoursPts[i];
-			for (int j = 0; j < (int)contour.points.size(); j++)
+			for (int j = 0; j < (int)contour.pointsInPix.size(); j++)
 			{
-				cv::Point2f pt = contour.points[j];
-				edges.at<uchar>((int)pt.y, (int)pt.x) = (uchar)255;
+				cv::Point pt = contour.pointsInPix[j];
+				edges.at<uchar>(pt.y, pt.x) = (uchar)255;
 			}
 		}
 	}
@@ -552,7 +559,7 @@ cv::Vec4f sp::SubPix::contourOrientationLine(const std::vector< cv::Point2f >& p
 	return line;
 }
 
-void sp::SubPix::filterContours(std::vector<sp::EdgesSubPix::Contour>& contours, const std::string& windowName)
+void sp::SubPix::filterContours(std::vector<sp::EdgesSubPix::Contour>& contours, const std::string& windowName, const bool& display)
 {
 	cv::Mat output;
 	cv::cvtColor(m_image, output, cv::COLOR_GRAY2BGR);
@@ -629,6 +636,7 @@ void sp::SubPix::filterContours(std::vector<sp::EdgesSubPix::Contour>& contours,
 		if (ptFiltering)
 		{
 			std::vector< cv::Point2f > pts;
+			std::vector< cv::Point > ptsInPix;
 			std::vector<float> direction;
 			std::vector<float> response;
 			cv::Vec4i hierarchy;
@@ -676,6 +684,7 @@ void sp::SubPix::filterContours(std::vector<sp::EdgesSubPix::Contour>& contours,
 				if (ptFilterOutput)
 				{
 					pts.push_back(contour.points[j]);
+					ptsInPix.push_back(contour.pointsInPix[j]);
 					direction.push_back(contour.direction[j]);
 					response.push_back(contour.response[j]);
 					nx.push_back(contour.nx[j]);
@@ -686,13 +695,16 @@ void sp::SubPix::filterContours(std::vector<sp::EdgesSubPix::Contour>& contours,
 			hierarchy = contour.hierarchy;
 			length = contour.length;
 			area = contour.area;
-			sp::EdgesSubPix::Contour filteredContour(pts, direction, response, hierarchy, nx, ny, length, area);
+			sp::EdgesSubPix::Contour filteredContour(pts, ptsInPix, direction, response, hierarchy, nx, ny, length, area);
 			validContours.push_back(filteredContour);
 		}
 
-		cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
-		cv::resizeWindow(windowName, output.cols, output.rows);
-		cv::imshow(windowName, output);
+		if (display) {
+
+			cv::namedWindow(windowName, cv::WINDOW_GUI_EXPANDED);
+			cv::resizeWindow(windowName, output.cols, output.rows);
+			cv::imshow(windowName, output);
+		}
 	}
 
 	if (!validContours.empty()) {
@@ -706,6 +718,23 @@ void sp::SubPix::updateEdgesListFromROIs()
 	for (auto it : m_roisEdgesPts) {
 		m_edgesInSubPixel.insert(m_edgesInSubPixel.end(), it.second.begin(), it.second.end());
 	}
+
+	m_edgesInPixel.clear();
+	for (auto it : m_edgesInSubPixel) {
+
+		sp::EdgesSubPix::Edge edgeInPix;
+
+		// replace when fusing the two lists (pix and not pix: TODO)
+		edgeInPix.direction = it.direction;
+		edgeInPix.nx = it.nx;
+		edgeInPix.ny = it.ny;
+		cv::Point2f pt(it.pointInPix.x, it.pointInPix.y);
+		edgeInPix.point = pt;
+		edgeInPix.pointInPix = it.pointInPix;
+		edgeInPix.response = it.response;
+
+		m_edgesInPixel.push_back(edgeInPix);
+	}
 }
 
 void sp::SubPix::updateContoursListFromROIs()
@@ -718,6 +747,29 @@ void sp::SubPix::updateContoursListFromROIs()
 	for (auto it : m_roisContoursPts) {
 		m_contoursPtsInSubPixel.insert(m_contoursPtsInSubPixel.end(), it.second.begin(), it.second.end());
 	}
+
+	m_contoursPtsInPixel.clear();
+	for (auto it : m_contoursPtsInSubPixel) {
+		
+		sp::EdgesSubPix::Contour contourInPix;
+		
+		// replace when fusing the two lists (pix and not pix: TODO)
+		contourInPix.area = it.area;
+		contourInPix.direction = it.direction;
+		contourInPix.hierarchy = it.hierarchy;
+		contourInPix.length = it.length;
+		contourInPix.nx = it.nx;
+		contourInPix.ny = it.ny;
+		for (auto itPt : it.pointsInPix)
+		{
+			cv::Point2f pt(itPt.x, itPt.y);
+			contourInPix.points.push_back(pt);
+		}
+		contourInPix.pointsInPix = it.pointsInPix;
+		contourInPix.response = it.response;
+
+		m_contoursPtsInPixel.push_back(contourInPix);
+	}	
 }
 
 std::map< int, std::vector<sp::EdgesSubPix::Edge> > sp::SubPix::pixelEdgesMap(const std::vector<sp::EdgesSubPix::Edge>& edges, const std::vector<sp::EdgesSubPix::Edge>& subEdges, int imageHeight)
@@ -1060,14 +1112,8 @@ void sp::SubPix::contourVec2VecForDisplay(const std::vector<sp::EdgesSubPix::Con
 	hierarchy.clear();
     for (int i = 0; i < (int)contoursPts.size(); ++i)
     {
-        std::vector< cv::Point2f> pts = contoursPts[i].points;
-        std::vector < cv::Point > ptsInt;
-        for (int j = 0; j < (int)pts.size(); j++) {
-            cv::Point2f pt(pts[j].x, pts[j].y);
-			cv::Point pt2Display((int)pt.x, (int)pt.y);
-            ptsInt.push_back(pt2Display);
-        }
-        contours.push_back(ptsInt);
+        std::vector< cv::Point> pts = contoursPts[i].pointsInPix;
+        contours.push_back(pts);
 		hierarchy.push_back(contoursPts[i].hierarchy);
     }
 }
@@ -1298,6 +1344,8 @@ void sp::SubPix::saveContours2YmlFile(const std::string& filename, const std::ve
             fs << "id" << (int)i;
             fs << "points" << contours[i].points;
             fs << "points size" << (int)contours[i].points.size();
+			fs << "pointsInPix" << contours[i].pointsInPix;
+			fs << "pointsInPix size" << (int)contours[i].pointsInPix.size();
             fs << "response" << contours[i].response;
             fs << "response size" << (int)contours[i].response.size();
             fs << "direction" << contours[i].direction;
@@ -1446,7 +1494,8 @@ void sp::SubPix::saveEdgesPixelMap(const std::string& filename, int imageHeight,
             for (std::vector<sp::EdgesSubPix::Edge >::iterator edgesIter = pixelEdgesMapIter->second.begin(); edgesIter != pixelEdgesMapIter->second.end(); ++edgesIter)
             {
                 fs << "{:";
-                fs << "points" << (*edgesIter).point;
+                fs << "point" << (*edgesIter).point;
+				fs << "pointInPix" << (*edgesIter).pointInPix;
                 fs << "response" << (*edgesIter).response;
                 fs << "direction" << (*edgesIter).direction;
                 fs << "}";
@@ -1478,6 +1527,7 @@ void sp::SubPix::saveContoursPixelMap(const std::string& filename, int imageHeig
                 for (std::vector<sp::EdgesSubPix::Edge >::const_iterator edgesIter = contoursMapIter->second.begin(); edgesIter != contoursMapIter->second.end(); ++edgesIter) {
                     fs << "{:";
                     fs << "points" << (*edgesIter).point;
+					fs << "pointsInPix" << (*edgesIter).pointInPix;
                     fs << "response" << (*edgesIter).response;
                     fs << "direction" << (*edgesIter).direction;
                     fs << "}";
