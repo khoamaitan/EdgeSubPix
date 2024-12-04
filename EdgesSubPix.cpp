@@ -451,7 +451,7 @@ bool checkContourClosure(sp::EdgesSubPix::Contour& contour, bool displayReason=f
 	}
 	/*if (!occurences.empty() & !occurences.empty()) {
 		std::vector<int> compression;
-		compression.push_back(CV_IMWRITE_PXM_BINARY);
+		compression.push_back(cv::IMWRITE_PXM_BINARY);
 		compression.push_back(0);
 		cv::imwrite("occurences.pgm", occurences, compression);
 	}*/

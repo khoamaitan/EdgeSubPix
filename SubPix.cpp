@@ -1326,7 +1326,7 @@ void sp::SubPix::saveImage(const std::string& filename, cv::Mat& image)
 {
     if (!filename.empty() & !image.empty()) {
         std::vector<int> compression;
-        compression.push_back(CV_IMWRITE_PXM_BINARY);
+        compression.push_back(cv::IMWRITE_PXM_BINARY);
         compression.push_back(0);
         cv::imwrite(filename, image, compression);
     }
